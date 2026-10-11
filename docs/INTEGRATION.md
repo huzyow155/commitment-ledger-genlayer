@@ -7,17 +7,12 @@ This document details how client applications and future dApps can integrate wit
 - **Network**: GenLayer Studionet (Preview)
 - **Chain ID**: `61999`
 - **RPC URL**: `https://studio.genlayer.com/api`
-- **Explorer URL**: `https://explorer-studio.genlayer.com/address/0x0A4Dc27c06520EA1EbcAEAFBF94f90b2AbDc6aa1`
-- **Contract Address**: `0x0A4Dc27c06520EA1EbcAEAFBF94f90b2AbDc6aa1`
+- **Explorer URL**: `https://explorer-studio.genlayer.com/address/0x3155c7c80f4334968d61E1b79f74EB864CF7cb08`
+- **Contract Address**: `0x3155c7c80f4334968d61E1b79f74EB864CF7cb08`
 - **genlayer-js version**: `1.1.8`
 - **Chain Object**: `chains.studionet`
 
-### Superseded Deployments
-
-| Address | Deploy Tx Hash | Superseded Note |
-| :--- | :--- | :--- |
-| `0x8a5269aa724E77D799b3F0dbbaeee7683157f52d` | `0xc8461e53602c7cc610eab8d99bb8f277b388debb1366736529f90439ba8e4a6b` | Superseded by v2.1.0: removed ungrounded fallback and enforced mandatory calendar date deadlines. |
-| `0x13b20E2DBc4E8C2D30e3E484D78ee90f583882F3` | `0x50015b28539130d6bebb768639427029725183f3b8b6b8b4490510c68ccfc235` | Initial caller-written text prototype, superseded by source-URL allowlisted resolution (Option A). |
+For earlier superseded contract deployments, see the [README](../README.md#superseded-deployments).
 
 ---
 
@@ -36,7 +31,7 @@ Registers a public commitment with immediate multi-validator canonical extractio
 - **Example Call (`genlayer-js`)**:
   ```javascript
   const txHash = await client.writeContract({
-    address: '0x0A4Dc27c06520EA1EbcAEAFBF94f90b2AbDc6aa1',
+    address: '0x3155c7c80f4334968d61E1b79f74EB864CF7cb08',
     functionName: 'register_commitment',
     args: [
       "The United States Apollo 11 mission will land human astronauts on the lunar surface before 1970.",
@@ -62,16 +57,16 @@ Submits an allowlisted public source URL that the Intelligent Contract fetches a
   - Contract fetches page text and bounds it to the first 6,000 characters.
   - Evaluates semantic equivalence against registered `{subject, action}`.
   - If source does not match, transaction reverts with user error: `"source does not match this commitment"`.
-  - Classifies outcome (`KEPT`, `BROKEN`, `PARTIAL`).
+  - Classifies outcome (`KEPT`, `BROKEN`, `PARTIAL`). If model returns an outcome other than `KEPT`, `BROKEN`, or `PARTIAL`, transaction reverts with `"model returned no valid outcome"`.
   - Verifies grounded verbatim quote (>= 12 chars). If ungrounded, reverts with `"no grounded quote in source"`, leaving commitment `OPEN`.
 - **Measured Latency**: 15.00s – 38.15s.
 - **Example Call (`genlayer-js`)**:
   ```javascript
   const txHash = await client.writeContract({
-    address: '0x0A4Dc27c06520EA1EbcAEAFBF94f90b2AbDc6aa1',
+    address: '0x3155c7c80f4334968d61E1b79f74EB864CF7cb08',
     functionName: 'submit_resolution',
     args: [
-      "bd37d1fb57d3",
+      "1fe69a47c557",
       "https://en.wikipedia.org/wiki/Apollo_11"
     ],
   });
@@ -88,9 +83,9 @@ Retrieves a serialized JSON representation of a commitment record.
 - **Response Shape**:
   ```json
   {
-    "schema_version": "2.1.0",
-    "commitment_id": "bd37d1fb57d3",
-    "registrant": "0xf8223276B10B629a175899cc136A31e2114DC798",
+    "schema_version": "2.2.0",
+    "commitment_id": "1fe69a47c557",
+    "registrant": "0x71B47328E05e68875cBc203a1B4d04fA2A0965B6",
     "raw_text": "The United States Apollo 11 mission will land human astronauts on the lunar surface before 1970.",
     "deadline_hint": "1970-01-01",
     "created_round": 1,
@@ -99,8 +94,8 @@ Retrieves a serialized JSON representation of a commitment record.
     "source_url": "https://en.wikipedia.org/wiki/Apollo_11",
     "resolution_quote": "Apollo 11 (July 16–24, 1969) was the American spaceflight that first landed humans on the Moon",
     "match_confirmed": true,
-    "resolved_at": "2026-10-11T17:01:48.668817Z",
-    "resolver": "0xf8223276B10B629a175899cc136A31e2114DC798"
+    "resolved_at": "2026-10-11T17:51:14.230481Z",
+    "resolver": "0x71B47328E05e68875cBc203a1B4d04fA2A0965B6"
   }
   ```
 
@@ -141,4 +136,6 @@ All user errors are raised via `gl.vm.UserError`:
 - `"cannot resolve before deadline date"`: `current_date < deadline_hint`.
 - `"source fetch failed"`: Web retrieval of the target URL returned empty or failed.
 - `"source does not match this commitment"`: Validators agreed that the fetched source text is a distractor or describes a different subject/action. Open state is preserved.
-- `"no grounded quote in source"`: LLM produced an ungrounded or sub-12-character quote. Open state is preserved.
+- `"no grounded quote in source"`: Model produced an ungrounded or sub-12-character quote. Open state is preserved.
+- `"model returned no valid outcome"`: Model returned an unrecognized outcome value or failed to classify into KEPT, BROKEN, or PARTIAL. Open state is preserved.
+- `"malformed consensus result"`: Validator consensus output did not match expected structure. Open state is preserved.

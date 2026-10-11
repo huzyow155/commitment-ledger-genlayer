@@ -230,6 +230,130 @@ class TestLayer2Mocked(unittest.TestCase):
         self.assertIsNone(record["outcome"])
         self.assertEqual(record["match_confirmed"], False)
 
+    def test_missing_outcome_rejected_leaves_open(self):
+        gl.nondet.prompt_handler = lambda p: {"subject": "alice", "action": "deliver specification"}
+        cid = self.ledger.register_commitment("Alice will deliver specification.", "2026-06-30")
+
+        url = "https://www.reuters.com/article/tech"
+        page_content = "Alice successfully completed the formal protocol specification on time."
+        gl.nondet.web.pages[url] = page_content
+
+        # Model returns match=True and a grounded quote, but NO outcome key
+        gl.nondet.prompt_handler = lambda p: {
+            "match": True,
+            "quote": "Alice successfully completed the formal protocol specification"
+        }
+
+        with self.assertRaises(GlVM.UserError) as ctx:
+            self.ledger.submit_resolution(cid, url)
+        self.assertIn("model returned no valid outcome", str(ctx.exception))
+
+        record = json.loads(self.ledger.get_commitment(cid))
+        self.assertEqual(record["status"], "OPEN")
+        self.assertIsNone(record["outcome"])
+        self.assertIsNone(record["source_url"])
+
+    def test_outcome_normalization_and_invalid_rejection(self):
+        gl.nondet.prompt_handler = lambda p: {"subject": "alice", "action": "deliver specification"}
+        cid = self.ledger.register_commitment("Alice will deliver specification.", "2026-06-30")
+
+        url = "https://www.reuters.com/article/tech"
+        page_content = "Alice successfully completed the formal protocol specification on time."
+        gl.nondet.web.pages[url] = page_content
+
+        # (1) "kept " (lowercase with trailing space) normalized to KEPT and accepted
+        gl.nondet.prompt_handler = lambda p: {
+            "match": True,
+            "outcome": "kept ",
+            "quote": "Alice successfully completed the formal protocol specification"
+        }
+        self.ledger.submit_resolution(cid, url)
+        record = json.loads(self.ledger.get_commitment(cid))
+        self.assertEqual(record["status"], "RESOLVED")
+        self.assertEqual(record["outcome"], "KEPT")
+
+        # (2) "MAYBE" outcome rejected
+        cid2 = self.ledger.register_commitment("Alice will deliver v2.", "2026-06-30")
+        gl.nondet.prompt_handler = lambda p: {
+            "match": True,
+            "outcome": "MAYBE",
+            "quote": "Alice successfully completed the formal protocol specification"
+        }
+        with self.assertRaises(GlVM.UserError) as ctx:
+            self.ledger.submit_resolution(cid2, url)
+        self.assertIn("model returned no valid outcome", str(ctx.exception))
+        record2 = json.loads(self.ledger.get_commitment(cid2))
+        self.assertEqual(record2["status"], "OPEN")
+        self.assertIsNone(record2["outcome"])
+
+    def test_quote_beyond_6000_char_boundary_treated_as_ungrounded(self):
+        gl.nondet.prompt_handler = lambda p: {"subject": "researcher", "action": "find evidence"}
+        cid = self.ledger.register_commitment("Researcher will find evidence.", "2026-06-30")
+
+        url = "https://en.wikipedia.org/wiki/Apollo_11"
+        # 6,100 character page: padding of 6,050 chars, followed by target sentence
+        padding = "a" * 6050
+        target_sentence = "The hidden secret conclusion was discovered here."
+        gl.nondet.web.pages[url] = padding + target_sentence
+
+        gl.nondet.prompt_handler = lambda p: {
+            "match": True,
+            "outcome": "KEPT",
+            "quote": target_sentence
+        }
+
+        with self.assertRaises(GlVM.UserError) as ctx:
+            self.ledger.submit_resolution(cid, url)
+        self.assertIn("no grounded quote in source", str(ctx.exception))
+
+        record = json.loads(self.ledger.get_commitment(cid))
+        self.assertEqual(record["status"], "OPEN")
+        self.assertIsNone(record["outcome"])
+
+    def test_quote_within_6000_char_boundary_accepted(self):
+        gl.nondet.prompt_handler = lambda p: {"subject": "researcher", "action": "find evidence"}
+        cid = self.ledger.register_commitment("Researcher will find evidence.", "2026-06-30")
+
+        url = "https://en.wikipedia.org/wiki/Apollo_11"
+        # Target sentence within the first 6,000 characters
+        target_sentence = "The visible verified conclusion was discovered here."
+        padding = "b" * 5000
+        gl.nondet.web.pages[url] = target_sentence + padding
+
+        gl.nondet.prompt_handler = lambda p: {
+            "match": True,
+            "outcome": "KEPT",
+            "quote": target_sentence
+        }
+
+        self.ledger.submit_resolution(cid, url)
+        record = json.loads(self.ledger.get_commitment(cid))
+        self.assertEqual(record["status"], "RESOLVED")
+        self.assertEqual(record["outcome"], "KEPT")
+        self.assertEqual(record["resolution_quote"], target_sentence)
+
+    def test_malformed_consensus_result_rejected(self):
+        gl.nondet.prompt_handler = lambda p: {"subject": "charlie", "action": "deploy smart contract"}
+        cid = self.ledger.register_commitment("Charlie will deploy smart contract.", "2026-06-30")
+
+        url = "https://en.wikipedia.org/wiki/Apollo_11"
+        gl.nondet.web.pages[url] = "Charlie deployed the smart contract."
+
+        # Mock strict_eq to return an invalid or malformed format
+        original_strict_eq = gl.eq_principle.strict_eq
+        try:
+            gl.eq_principle.strict_eq = lambda fn: "MALFORMED_OUTPUT"
+            with self.assertRaises(GlVM.UserError) as ctx:
+                self.ledger.submit_resolution(cid, url)
+            self.assertIn("malformed consensus result", str(ctx.exception))
+
+            gl.eq_principle.strict_eq = lambda fn: "MATCH|UNKNOWN|GROUNDED|quote"
+            with self.assertRaises(GlVM.UserError) as ctx:
+                self.ledger.submit_resolution(cid, url)
+            self.assertIn("malformed consensus result", str(ctx.exception))
+        finally:
+            gl.eq_principle.strict_eq = original_strict_eq
+
 
 if __name__ == "__main__":
     unittest.main()

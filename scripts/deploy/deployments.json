@@ -3,24 +3,29 @@
   "chainId": 61999,
   "rpc": "https://studio.genlayer.com/api",
   "explorerBase": "https://explorer-studio.genlayer.com",
-  "contractAddress": "0x0A4Dc27c06520EA1EbcAEAFBF94f90b2AbDc6aa1",
-  "deployTxHash": "0x9b738652bceac390143a01f7dcf7ca24b7a92714430d950c34f9ae2936de4f52",
+  "contractAddress": "0x3155c7c80f4334968d61E1b79f74EB864CF7cb08",
+  "deployTxHash": "0x1aff7096cb2283f0e60ea74f4249d5d319f650177d9bee7a8ae798b7cf4c970a",
   "deployStatus": "ACCEPTED",
   "consensusResult": "MAJORITY_AGREE",
   "executionResult": "SUCCESS",
   "sourceFile": "contracts/CommitmentLedger.py",
-  "sourceSha256": "661ae1f9c9f15004a154e00472921cce89a60995b129a64d7fbd50fc8fe98263",
-  "explorerUrl": "https://explorer-studio.genlayer.com/address/0x0A4Dc27c06520EA1EbcAEAFBF94f90b2AbDc6aa1",
+  "sourceSha256": "fe63f0cc5a5788e2e3199919ddb5ee067c4c19c17389a8a250764f8e5299016f",
+  "explorerUrl": "https://explorer-studio.genlayer.com/address/0x3155c7c80f4334968d61E1b79f74EB864CF7cb08",
   "supersededDeployments": [
+    {
+      "address": "0x0A4Dc27c06520EA1EbcAEAFBF94f90b2AbDc6aa1",
+      "deployTxHash": "0x9b738652bceac390143a01f7dcf7ca24b7a92714430d950c34f9ae2936de4f52",
+      "reason": "Superseded by v2.2.0: could write PARTIAL when model returned no valid outcome."
+    },
     {
       "address": "0x8a5269aa724E77D799b3F0dbbaeee7683157f52d",
       "deployTxHash": "0xc8461e53602c7cc610eab8d99bb8f277b388debb1366736529f90439ba8e4a6b",
-      "reason": "Superseded by v2.1.0 (ungrounded quote fallback removal and mandatory strict deadline validation)"
+      "reason": "Superseded by v2.1.0: removed ungrounded fallback and enforced mandatory calendar date deadlines."
     },
     {
       "address": "0x13b20E2DBc4E8C2D30e3E484D78ee90f583882F3",
       "deployTxHash": "0x50015b28539130d6bebb768639427029725183f3b8b6b8b4490510c68ccfc235",
-      "reason": "Superseded by source-based resolution hardening (Option A)"
+      "reason": "Initial caller-written text prototype, superseded by source-based resolution."
     }
   ]
 }

@@ -1,21 +1,21 @@
 {
-  "contractAddress": "0x0A4Dc27c06520EA1EbcAEAFBF94f90b2AbDc6aa1",
-  "deployTxHash": "0x9b738652bceac390143a01f7dcf7ca24b7a92714430d950c34f9ae2936de4f52",
+  "contractAddress": "0x3155c7c80f4334968d61E1b79f74EB864CF7cb08",
+  "deployTxHash": "0x1aff7096cb2283f0e60ea74f4249d5d319f650177d9bee7a8ae798b7cf4c970a",
   "cases": {
     "caseA": {
-      "title": "Case A (Trap Test, KEPT)",
-      "commitmentId": "bd37d1fb57d3",
+      "title": "Case A (Paraphrased Source, KEPT)",
+      "commitmentId": "1fe69a47c557",
       "rawText": "The United States Apollo 11 mission will land human astronauts on the lunar surface before 1970.",
       "deadlineHint": "1970-01-01",
       "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_11",
-      "registerTx": "0x18722b91d176e82e3cc98e9ec729a0688cf902b4cf84554726654b8496cdff1c",
-      "resolveTx": "0xe745e76c4a4ef367a105317606c3475334a73bffa907b43990c798ed0a03ed0c",
+      "registerTx": "0xd61b234967a1011ec915b56afeae573fb4bd54192f5ad1358fd82a90d1737abd",
+      "resolveTx": "0x54b64f75cd22ef47ac2adecc71ee1e37dd95869c75ea7a274a7c6424e8b715c5",
       "statusName": "ACCEPTED",
       "leaderExecutionResult": "SUCCESS",
       "finalRecord": {
-        "schema_version": "2.1.0",
-        "commitment_id": "bd37d1fb57d3",
-        "registrant": "0xf8223276B10B629a175899cc136A31e2114DC798",
+        "schema_version": "2.2.0",
+        "commitment_id": "1fe69a47c557",
+        "registrant": "0x71B47328E05e68875cBc203a1B4d04fA2A0965B6",
         "raw_text": "The United States Apollo 11 mission will land human astronauts on the lunar surface before 1970.",
         "subject": "apollo 11 mission",
         "action": "land human astronauts on the lunar surface before 1970",
@@ -26,24 +26,24 @@
         "source_url": "https://en.wikipedia.org/wiki/Apollo_11",
         "resolution_quote": "Apollo 11 (July 16–24, 1969) was the American spaceflight that first landed humans on the Moon",
         "match_confirmed": true,
-        "resolved_at": "2026-10-11T17:01:48.668817Z",
-        "resolver": "0xf8223276B10B629a175899cc136A31e2114DC798"
+        "resolved_at": "2026-10-11T17:51:14.230481Z",
+        "resolver": "0x71B47328E05e68875cBc203a1B4d04fA2A0965B6"
       }
     },
     "caseB": {
       "title": "Case B (Grounded Quote, BROKEN)",
-      "commitmentId": "8957209fbf0c",
+      "commitmentId": "605aa94797d3",
       "rawText": "Apollo 13 will successfully land on the Moon.",
       "deadlineHint": "1970-05-01",
       "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_13",
-      "registerTx": "0xb4148c73d4f68ee21eaa76e6dfb6df04ddf560d45c49bbe73e1d44d78a8a7b86",
-      "resolveTx": "0xfabe1ec4146f988bf900f33e4ef0fa87d644a8320ee9b749376dbb01e39260ee",
+      "registerTx": "0xae2cd4b15272a53eaf11d6d3fb9fc5200610ddf170c494672f81c42cd7333823",
+      "resolveTx": "0xf04a899cfb85a62e958a7e378b063026f21811726c8f8a612c7fbf080a85e943",
       "statusName": "ACCEPTED",
       "leaderExecutionResult": "SUCCESS",
       "finalRecord": {
-        "schema_version": "2.1.0",
-        "commitment_id": "8957209fbf0c",
-        "registrant": "0xf8223276B10B629a175899cc136A31e2114DC798",
+        "schema_version": "2.2.0",
+        "commitment_id": "605aa94797d3",
+        "registrant": "0x71B47328E05e68875cBc203a1B4d04fA2A0965B6",
         "raw_text": "Apollo 13 will successfully land on the Moon.",
         "subject": "apollo 13",
         "action": "successfully land on the moon",
@@ -54,25 +54,25 @@
         "source_url": "https://en.wikipedia.org/wiki/Apollo_13",
         "resolution_quote": "the landing was aborted after an oxygen tank in the service module (SM) exploded two days into the mission",
         "match_confirmed": true,
-        "resolved_at": "2026-10-11T17:07:21.449531Z",
-        "resolver": "0x0e42bea688dB6923E06f86d67488EAD4159ef82c"
+        "resolved_at": "2026-10-11T17:52:20.286842Z",
+        "resolver": "0x71B47328E05e68875cBc203a1B4d04fA2A0965B6"
       }
     },
     "caseC": {
       "title": "Case C (Distractor Rejection, NOMATCH)",
-      "commitmentId": "777cff3cd53d",
+      "commitmentId": "4efe7cbd0772",
       "rawText": "NASA will verify the James Webb Space Telescope deployment.",
       "deadlineHint": "2022-01-01",
       "sourceUrl": "https://en.wikipedia.org/wiki/Falcon_9",
-      "registerTx": "0x9d23690ad972938b3dfdff2df67ecdd2bcee05bf78f71ba3cb61a906c65e13a1",
-      "resolveTx": "0xfb42396d32522f8b143f16155e35a62233629f9da9278788d1cbbf5ee1a945a3",
+      "registerTx": "0x588c25fb25bbb86c235943ae06a9dcfd7523238e1d177be731bad1244c7baec2",
+      "resolveTx": "0x7dda2fcd83a02ce8d34fc451d3ff5bff18129ea078cc4a1d31776e1f73b74a59",
       "statusName": "ACCEPTED",
       "leaderExecutionResult": "ERROR",
       "revertPayload": "source does not match this commitment",
       "finalRecord": {
-        "schema_version": "2.1.0",
-        "commitment_id": "777cff3cd53d",
-        "registrant": "0xf8223276B10B629a175899cc136A31e2114DC798",
+        "schema_version": "2.2.0",
+        "commitment_id": "4efe7cbd0772",
+        "registrant": "0x71B47328E05e68875cBc203a1B4d04fA2A0965B6",
         "raw_text": "NASA will verify the James Webb Space Telescope deployment.",
         "subject": "nasa",
         "action": "verify james webb space telescope deployment",
@@ -86,162 +86,105 @@
         "resolved_at": null,
         "resolver": null
       }
-    },
-    "caseD": {
-      "title": "Case D (Broad Objectives, KEPT)",
-      "commitmentId": "5acebf3f7a12",
-      "rawText": "Apollo 11 spacecraft will complete all scheduled mission objectives.",
-      "deadlineHint": "1970-01-01",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_11",
-      "registerTx": "0x77109e7ffe9fa70a44ec1777a89e21399d825df54bfe1d5e7d1ff944b66ef652",
-      "resolveTx": "0x0ee9c652c51f6f9b279d4dc8349bb78ba961043a7512e83a47969e0896761aff",
-      "statusName": "ACCEPTED",
-      "leaderExecutionResult": "SUCCESS",
-      "finalRecord": {
-        "schema_version": "2.1.0",
-        "commitment_id": "5acebf3f7a12",
-        "registrant": "0xf8223276B10B629a175899cc136A31e2114DC798",
-        "raw_text": "Apollo 11 spacecraft will complete all scheduled mission objectives.",
-        "subject": "apollo 11 spacecraft",
-        "action": "complete all scheduled mission objectives",
-        "deadline_hint": "1970-01-01",
-        "created_round": 4,
-        "status": "RESOLVED",
-        "outcome": "KEPT",
-        "source_url": "https://en.wikipedia.org/wiki/Apollo_11",
-        "resolution_quote": "After more than 21 hours on the surface, they rejoined Collins in lunar orbit, and the crew returned safely to Earth on July 24",
-        "match_confirmed": true,
-        "resolved_at": "2026-10-11T17:05:47.087899Z",
-        "resolver": "0xf8223276B10B629a175899cc136A31e2114DC798"
-      }
-    },
-    "caseE": {
-      "title": "Case E (Genuine Partial Fulfillment, PARTIAL)",
-      "commitmentId": "a7ff11e6c969",
-      "rawText": "Apollo 13 will land on the Moon and return its crew to Earth safely.",
-      "deadlineHint": "1970-05-01",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_13",
-      "registerTx": "0xeaad301f9936810d9444853dee124a17e5cde35f616bbf45df5154dc891d7bbe",
-      "resolveTx": "0x222552175590d4c492115f0a853fd0181da2cd355b49a63707a1e8e90a45106c",
-      "statusName": "ACCEPTED",
-      "leaderExecutionResult": "SUCCESS",
-      "finalRecord": {
-        "schema_version": "2.1.0",
-        "commitment_id": "a7ff11e6c969",
-        "registrant": "0xAa21981332E99159256E9Bc5b9eF264B140c6D95",
-        "raw_text": "Apollo 13 will land on the Moon and return its crew to Earth safely.",
-        "subject": "apollo 13",
-        "action": "land on the moon and return crew to earth safely",
-        "deadline_hint": "1970-05-01",
-        "created_round": 6,
-        "status": "RESOLVED",
-        "outcome": "PARTIAL",
-        "source_url": "https://en.wikipedia.org/wiki/Apollo_13",
-        "resolution_quote": "the landing was aborted after an oxygen tank in the service module (SM) exploded",
-        "match_confirmed": true,
-        "resolved_at": "2026-10-11T17:20:02.287947Z",
-        "resolver": "0xAa21981332E99159256E9Bc5b9eF264B140c6D95"
-      }
     }
   },
   "partialAttempts": [
     {
       "attemptIndex": 1,
-      "commitmentId": "a7ff11e6c969",
+      "commitmentId": "8099a3b46652",
       "rawText": "Apollo 13 will land on the Moon and return its crew to Earth safely.",
       "deadline": "1970-05-01",
       "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_13",
-      "registerTx": "0xeaad301f9936810d9444853dee124a17e5cde35f616bbf45df5154dc891d7bbe",
-      "resolveTx": "0x222552175590d4c492115f0a853fd0181da2cd355b49a63707a1e8e90a45106c",
-      "statusName": "ACCEPTED",
+      "registerTx": "0xe6b22fedf7995ea8cdfd854ac313195d49b72d9311ac0e0a1d1766f414604e65",
+      "resolveTx": "0xed0bc3d67580b1b167bdf8c7abc4c8c0f3d077ab623d1b2597421c1987405162",
+      "statusName": "UNDETERMINED",
       "leaderExecutionResult": "SUCCESS",
-      "recordStatus": "RESOLVED",
-      "recordOutcome": "PARTIAL",
-      "resolutionQuote": "the landing was aborted after an oxygen tank in the service module (SM) exploded"
-    }
-  ],
-  "ungroundedAttempts": [
-    {
-      "attemptIndex": 1,
-      "commitmentId": "890f6f54ea37",
-      "rawText": "The Apollo 11 lunar module will lift off from the lunar surface on July 21 1969.",
-      "deadline": "1970-01-01",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_11",
-      "registerTx": "0x5dff8fbc6b5bc5599746c6f8663e127b981fe3af1c37504a9a750ada4853772e",
-      "resolveTx": "0xc50a97bc4b98979990b322ce0f11ade1ac88fa0225d3c935ffda12bf5b3d73d8",
-      "statusName": "ACCEPTED",
-      "leaderExecutionResult": "SUCCESS",
-      "recordStatus": "RESOLVED",
-      "recordOutcome": "KEPT",
-      "resolutionQuote": "Return launch July 21, 1969, 17:54:00 UTC",
-      "note": "Wikipedia infobox at head of page contained verbatim return launch quote, so quote was grounded."
+      "recordStatus": "OPEN",
+      "recordOutcome": null,
+      "note": "Validators disagreed on semantic synthesis of partial clause fulfillment, returning UNDETERMINED."
     },
     {
       "attemptIndex": 2,
-      "commitmentId": "890f6f54ea37",
-      "rawText": "NASA Apollo program total financial expenditure reached over twenty billion dollars by 1973.",
-      "deadline": "1975-01-01",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_11",
-      "registerTx": "0x4e4ebbba5ef4d3a80ef07c9849c6537ec40ddeac7cccbe2b8929265ecdd16c2d",
-      "resolveTx": "0x647de249785999396d2587e9895ebe310865ab46e08a3bff527f0fb36d9d0ca2",
-      "statusName": "ACCEPTED",
+      "commitmentId": "8099a3b46652",
+      "rawText": "Apollo 13 will land on the Moon and return its crew to Earth safely.",
+      "deadline": "1970-05-01",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_13",
+      "registerTx": "0xe6b22fedf7995ea8cdfd854ac313195d49b72d9311ac0e0a1d1766f414604e65",
+      "resolveTx": "0x36b95100499bb9eb434a7056bc7e76d4f37c8c0d921c3e71102ccf76b69dd5b4",
+      "statusName": "UNDETERMINED",
       "leaderExecutionResult": "ERROR",
-      "revertPayload": "commitment already resolved",
-      "note": "Registration transaction returned UNDETERMINED due to validator divergence, so resolve targeted previous CID which was already resolved."
+      "recordStatus": "OPEN",
+      "recordOutcome": null,
+      "note": "Second resolution attempt returned MAJORITY_DISAGREE (UNDETERMINED); record preserved OPEN."
     },
     {
       "attemptIndex": 3,
-      "commitmentId": "9463fdfc4694",
-      "rawText": "The Apollo 11 crew will complete biological decontamination procedures aboard the USS Hornet in the Pacific Ocean.",
-      "deadline": "1970-01-01",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_11",
-      "registerTx": "0xc40ed3ff1aeec098d15f3c0970d95533f3de34e1df72767976a321c3c80ae399",
-      "resolveTx": "0x41b93dbfa438310cae1be0a0096af3041e369e85b1099618f2ee431c344f5c23",
-      "statusName": "ACCEPTED",
+      "commitmentId": "8099a3b46652",
+      "rawText": "Apollo 13 will land on the Moon and return its crew to Earth safely.",
+      "deadline": "1970-05-01",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_13",
+      "registerTx": "0xe6b22fedf7995ea8cdfd854ac313195d49b72d9311ac0e0a1d1766f414604e65",
+      "resolveTx": "0xd365fcab417a161cc10acce0f91a6cd51c0f840906bb10df6b907fa37f311bc5",
+      "statusName": "UNDETERMINED",
       "leaderExecutionResult": "ERROR",
-      "revertPayload": "source does not match this commitment",
       "recordStatus": "OPEN",
       "recordOutcome": null,
-      "note": "Decontamination detail absent in first 6000 chars; validators evaluated as NOMATCH distractor rather than matching with ungrounded quote."
+      "note": "Third resolution attempt returned MAJORITY_DISAGREE (UNDETERMINED); record preserved OPEN."
     }
   ],
   "negativeTests": {
     "nonAllowlistedDomain": {
       "url": "https://github.com/nasa/webb",
-      "txHash": "0x3db3ee1df9f6a5355f1ffb335d21a7ea45f487c87b6ce470a393f535b1d508f7",
+      "txHash": "0x5700f1c0b10574950bf94bd8b6fa5b8a19774fdc6d5e1b35c9c5f51712362516",
       "statusName": "ACCEPTED",
       "leaderExecutionResult": "ERROR",
       "revertPayload": "source_url domain not in authorized allowlist"
     },
     "insecureScheme": {
       "url": "http://en.wikipedia.org/wiki/Falcon_9",
-      "txHash": "0x5180df851b7bf0c6bd4af7483df445e4b1dfaf747512b4bb1ded61430f0889d2",
+      "txHash": "0x39b53afc63f6280205fc802b6edc9716878fa1ed73e1677aace2cbf89caef1ef",
       "statusName": "ACCEPTED",
       "leaderExecutionResult": "ERROR",
       "revertPayload": "source_url scheme must be https"
     },
     "freeTextDeadline": {
       "attemptedDeadline": "end of Q2",
-      "txHash": "0xee70c7ad2011db0ad86a1ec12c802e6c4556002700293ad0322c66c6772880a5",
+      "txHash": "0x334a98052827dae100223ef13febac25f35b7ed06a766435e1bbb8f9730ede43",
       "statusName": "ACCEPTED",
       "leaderExecutionResult": "ERROR",
       "revertPayload": "deadline_hint must be YYYY-MM-DD"
     },
     "prematureResolution": {
-      "commitmentId": "c6d31c5dcdc1",
+      "commitmentId": "a46761c192e4",
       "deadlineHint": "2099-01-01",
-      "registerTx": "0x471fcd437e0c6c68a7b979d06b6dcf06f457bc457be694f49db3a59f756099f6",
-      "resolveTx": "0x43f6587c18ae2f9b3d34c4c99ca056a9fc8b122e6c1e967ce96a51d594e42535",
+      "registerTx": "0x93f3887a763ef5135f78c9aca7fc5cf8be2755e0c9b9579e2dc9fb368ab3a553",
+      "txHash": "0xbf92e012a6ba8d58288b1138d4b66be0f6a25cef8364ce7d19d2639bfee8c11a",
       "statusName": "ACCEPTED",
       "leaderExecutionResult": "ERROR",
       "revertPayload": "cannot resolve before deadline date"
     },
     "alreadyResolved": {
-      "commitmentId": "bd37d1fb57d3",
-      "txHash": "0xb700d2e9be062c18b973dadbc5f5e97cb9cda337ebab1381ac5d20a60d43a666",
+      "commitmentId": "1fe69a47c557",
+      "txHash": "0x909b41a144f8469f9983e103aee508601a6b499e1ef6db5ac1ea759906e2c5d2",
       "statusName": "ACCEPTED",
       "leaderExecutionResult": "ERROR",
       "revertPayload": "commitment already resolved"
     }
-  }
+  },
+  "ungroundedAttempts": [
+    {
+      "attemptIndex": 1,
+      "commitmentId": "74bbbc860343",
+      "rawText": "The Apollo 11 crew will complete biological decontamination procedures aboard the USS Hornet in the Pacific Ocean.",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_11",
+      "registerTx": "0x44b2736698ef901fdcc05396d00b2ce2bf48bf12dda389e02abaa343390fc4f1",
+      "resolveTx": "0x18d9a60790aedba1cece4ef2bdf2392d224683ae8de80889b8bb0428ec3a24d3",
+      "statusName": "ACCEPTED",
+      "leaderExecutionResult": "ERROR",
+      "revertPayload": "source does not match this commitment",
+      "recordStatus": "OPEN",
+      "recordOutcome": null,
+      "note": "Decontamination detail absent in first 6,000 characters; validators evaluated as NOMATCH distractor rather than matching with hallucinated quote."
+    }
+  ]
 }

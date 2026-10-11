@@ -1,6 +1,8 @@
-# Runtime Notes (Milestone 0 Probe)
+# Runtime Notes (Probe Results)
 
 This document records the empirical behavior of the GenLayer studionet runtime as probed by the `Probe` contract deployment and write transaction.
+
+> Note: `contracts/Probe.py` exists purely as a runtime probe to verify platform primitives and VM behaviors. It is not the project contract (`CommitmentLedger.py` is the project contract).
 
 ## 1. Verified Header
 

@@ -97,6 +97,45 @@ class TestLayer3Consensus(unittest.TestCase):
         finally:
             gl.eq_principle.strict_eq = original_strict_eq
 
+    def test_validators_agree_on_invalid_output_treated_as_rejection(self):
+        url = "https://en.wikipedia.org/wiki/Apollo_11"
+        page_text = "Apollo 11 commander Neil Armstrong and lunar module pilot Buzz Aldrin landed on the Moon in July 1969."
+        gl.nondet.web.pages[url] = page_text
+
+        # All validators return invalid/missing outcome
+        votes = [
+            {"match": True, "outcome": "UNKNOWN", "quote": "landed on the Moon in July 1969"},
+            {"match": True, "outcome": "UNKNOWN", "quote": "landed on the Moon in July 1969"},
+            {"match": True, "outcome": "UNKNOWN", "quote": "landed on the Moon in July 1969"},
+        ]
+
+        def multi_val_strict_eq(fn):
+            results = []
+            for v in votes:
+                gl.nondet.prompt_handler = lambda p, vote=v: vote
+                results.append(fn())
+            if len(set(results)) != 1:
+                raise Exception("EQUIVALENCE_PRINCIPLE_VIOLATION: validators disagreed")
+            return results[0]
+
+        original_strict_eq = gl.eq_principle.strict_eq
+        try:
+            gl.eq_principle.strict_eq = multi_val_strict_eq
+
+            gl.nondet.prompt_handler = lambda p: {"subject": "apollo 11", "action": "land on the moon"}
+            cid = self.ledger.register_commitment("Apollo 11 will land on the moon", "1969-07-20")
+
+            with self.assertRaises(GlVM.UserError) as ctx:
+                self.ledger.submit_resolution(cid, url)
+            self.assertIn("model returned no valid outcome", str(ctx.exception))
+
+            # Commitment remains open
+            record = json.loads(self.ledger.get_commitment(cid))
+            self.assertEqual(record["status"], "OPEN")
+            self.assertIsNone(record["outcome"])
+        finally:
+            gl.eq_principle.strict_eq = original_strict_eq
+
 
 if __name__ == "__main__":
     unittest.main()

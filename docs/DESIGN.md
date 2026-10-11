@@ -2,9 +2,9 @@
 
 This document describes the architectural design, trust model, and validator consensus mechanics of `CommitmentLedger`.
 
-## 1. Problem: The Paraphrase-Dodging Vulnerability & Caller Circularity
+## 1. Problem: Paraphrase Vulnerability & Caller Circularity
 
-Public commitments (e.g. roadmap milestones, steward promises, funding conditions) are commonly restated or dodged using semantic shifts:
+Public commitments (e.g. roadmap targets, steward promises, funding conditions) are commonly restated or dodged using semantic shifts:
 - A speaker states: *"We will release our main audited token contract by Q3."*
 - If evaluated by naive exact string/hash comparison, the check fails when evidence refers to: *"In September, the audited token smart contract was successfully launched."*
 - If evaluated by free-form, unconstrained LLM prompts, non-deterministic phrasing causes validators to diverge, failing consensus (`EQUIVALENCE_PRINCIPLE_VIOLATION`).
@@ -16,7 +16,7 @@ In naive implementations where callers supply free-form evidence text directly:
 - A registrant could self-certify `KEPT` using self-authored text.
 - A malicious party could front-run an open commitment with self-authored text claiming `BROKEN`.
 
-To eliminate this vulnerability, `CommitmentLedger` implements **Option A (Source-Based Resolution)**: resolutions must provide an allowlisted public source URL that the contract itself fetches through GenLayer's nondeterministic web environment (`gl.nondet.web.render`).
+To eliminate this vulnerability, `CommitmentLedger` implements **Source-Based Resolution**: resolutions must provide an allowlisted public source URL that the contract itself fetches through GenLayer's nondeterministic web environment (`gl.nondet.web.render`).
 
 ## 2. Storage Architecture
 
@@ -24,9 +24,9 @@ To eliminate this vulnerability, `CommitmentLedger` implements **Option A (Sourc
 
 ```json
 {
-  "schema_version": "2.1.0",
-  "commitment_id": "bd37d1fb57d3",
-  "registrant": "0xf8223276B10B629a175899cc136A31e2114DC798",
+  "schema_version": "2.2.0",
+  "commitment_id": "1fe69a47c557",
+  "registrant": "0x71B47328E05e68875cBc203a1B4d04fA2A0965B6",
   "raw_text": "The United States Apollo 11 mission will land human astronauts on the lunar surface before 1970.",
   "deadline_hint": "1970-01-01",
   "subject": "apollo 11 mission",
@@ -37,8 +37,8 @@ To eliminate this vulnerability, `CommitmentLedger` implements **Option A (Sourc
   "source_url": "https://en.wikipedia.org/wiki/Apollo_11",
   "resolution_quote": "Apollo 11 (July 16–24, 1969) was the American spaceflight that first landed humans on the Moon",
   "match_confirmed": true,
-  "resolved_at": "2026-10-11T17:01:48.668817Z",
-  "resolver": "0xf8223276B10B629a175899cc136A31e2114DC798"
+  "resolved_at": "2026-10-11T17:51:14.230481Z",
+  "resolver": "0x71B47328E05e68875cBc203a1B4d04fA2A0965B6"
 }
 ```
 
@@ -64,22 +64,22 @@ Anyone can call `submit_resolution(commitment_id, source_url)`:
    - No userinfo, default port 443 only.
    - Domain must belong to the fixed allowlist: `wikipedia.org`, `reuters.com`, `apnews.com`, `bbc.com`, `nasa.gov`, `noaa.gov`, `ecb.europa.eu`.
    - Rejects IP literals, punycode, whitespace, and URLs > 300 characters.
-2. **Deadline Date Guard**:
+2. **Deterministic Deadline Guard**:
    - Enforces `current_date >= deadline_hint` using deterministic clock `gl.message_raw["datetime"]`.
-   - If earlier, raises `gl.vm.UserError("cannot resolve before deadline date")`. If clock missing, raises `gl.vm.UserError("clock unavailable")`.
+   - If earlier, raises `gl.vm.UserError("cannot resolve before deadline date")`. If clock is missing or invalid, raises `gl.vm.UserError("clock unavailable")`.
 3. **Web Retrieval (Nondeterministic)**:
    - Validators execute `gl.nondet.web.render(source_url, mode="text")` with fallback to `gl.nondet.web.get`.
    - Truncates retrieved text to a fixed bound (first 6,000 characters).
    - If text is empty or fetch fails, raises `gl.vm.UserError("source fetch failed")`, keeping the commitment `OPEN`.
-4. **Semantic Adjudication**:
-   - Retrieved text is enclosed in `<UNTRUSTED_SOURCE>` delimiters.
-   - The LLM determines if the source semantically describes the commitment (`MATCH` vs `NOMATCH`).
-   - If `NOMATCH`, returns canonical string `"NOMATCH|NONE|NONE"`.
-   - If `MATCH`, classifies outcome (`KEPT`, `BROKEN`, `PARTIAL`) and extracts a quote (<= 160 chars).
-   - Deterministic quote check: length >= 12 chars and verbatim in the fetched text.
-   - If ungrounded, returns canonical string `"UNGROUNDED|NONE|NONE"`.
+4. **Resolution Check Order (Strict Non-Overlapping Cascade)**:
+   - Evaluates retrieved source in `<UNTRUSTED_SOURCE>` block against registered `{subject, action}`.
+   - **Step 4a (`NOMATCH`)**: If source text describes an unrelated subject or different event, returns `"NOMATCH|NONE|NONE"`. Reverts with `"source does not match this commitment"`, commitment stays `OPEN`.
+   - **Step 4b (`INVALID`)**: If the model matches the topic but fails to produce a valid outcome (`KEPT`, `BROKEN`, or `PARTIAL`), returns `"INVALID|NONE|NONE"`. Reverts with `"model returned no valid outcome"`, commitment stays `OPEN`.
+   - **Step 4c (`UNGROUNDED`)**: If the model asserts an outcome but the quote is under 12 characters or not a verbatim substring of the first 6,000 characters, returns `"UNGROUNDED|NONE|NONE"`. Reverts with `"no grounded quote in source"`, commitment stays `OPEN`.
+   - **Step 4d (`MATCH`)**: If matched, valid outcome, and grounded quote verified, returns `"MATCH|<outcome>|<quote>"`.
 5. **Consensus Equivalence (`gl.eq_principle.strict_eq`)**:
    - Compares flat canonical string across validators.
    - If `"NOMATCH"`, raises `gl.vm.UserError("source does not match this commitment")` with zero storage state mutation.
-   - If `"UNGROUNDED"`, raises `gl.vm.UserError("no grounded quote in source")` with zero storage state mutation, keeping commitment `OPEN`.
+   - If `"INVALID"`, raises `gl.vm.UserError("model returned no valid outcome")` with zero storage state mutation.
+   - If `"UNGROUNDED"`, raises `gl.vm.UserError("no grounded quote in source")` with zero storage state mutation.
    - If `"MATCH"`, updates record status to `RESOLVED` with outcome, quote, timestamp, and resolver address. Permanent and irreversible.

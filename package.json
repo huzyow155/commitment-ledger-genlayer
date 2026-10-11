@@ -1,18 +1,21 @@
 {
   "name": "commitment-ledger-genlayer",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "description": "CommitmentLedger Intelligent Contract on GenLayer: tracking public commitments with consensus-verified semantic matching against paraphrase-dodging",
-  "main": "index.js",
+  "type": "commonjs",
   "scripts": {
     "test": "python -m unittest discover tests",
     "scan:ascii": "python scripts/scan_ascii.py",
     "scan:banned": "python scripts/scan_banned_words.py",
     "scan:secrets": "python scripts/scan_secrets.py",
+    "check:evidence": "python scripts/check_evidence_consistency.py",
     "verify:source": "node scripts/verify_source.js",
-    "deploy:probe": "node scripts/deploy/deploy_probe.js",
-    "deploy:core": "node scripts/deploy/deploy_core.js",
-    "deploy:ledger": "node scripts/deploy/deploy_ledger.js",
-    "run:evidence": "node scripts/deploy/run_live_evidence.js"
+    "deploy": "node scripts/deploy/deploy.js",
+    "evidence": "node scripts/deploy/run_evidence.js",
+    "decode:revert": "node scripts/tools/decode_revert.js",
+    "read:commitment": "node scripts/tools/read_commitment.js",
+    "render:evidence": "node scripts/tools/render_evidence_md.js",
+    "check": "npm run test && npm run scan:ascii && npm run scan:banned && npm run scan:secrets && npm run check:evidence"
   },
   "keywords": [
     "genlayer",
@@ -23,7 +26,6 @@
   ],
   "author": "huzyow155",
   "license": "MIT",
-  "type": "commonjs",
   "dependencies": {
     "genlayer-js": "^1.1.8"
   }

@@ -9,7 +9,7 @@ import urllib.parse
 from typing import Any
 from genlayer import *
 
-SCHEMA_VERSION = "2.1.0"
+SCHEMA_VERSION = "2.2.0"
 MAX_RAW_TEXT_LEN = 400
 MAX_URL_LEN = 300
 MIN_QUOTE_LEN = 12
@@ -302,9 +302,9 @@ class CommitmentLedger(gl.Contract):
             if not match_val:
                 return "NOMATCH|NONE|NONE"
 
-            raw_outcome = str(parsed.get("outcome", "PARTIAL")).strip().upper()
+            raw_outcome = str(parsed.get("outcome", "")).strip().upper()
             if raw_outcome not in ("KEPT", "BROKEN", "PARTIAL"):
-                raw_outcome = "PARTIAL"
+                return "INVALID|NONE|NONE"
 
             raw_quote = str(parsed.get("quote", "")).strip()
 
@@ -326,13 +326,28 @@ class CommitmentLedger(gl.Contract):
         if consensus_res.startswith("NOMATCH"):
             raise gl.vm.UserError("source does not match this commitment")
 
+        if consensus_res.startswith("INVALID"):
+            raise gl.vm.UserError("model returned no valid outcome")
+
         if consensus_res.startswith("UNGROUNDED"):
             raise gl.vm.UserError("no grounded quote in source")
 
+        if not consensus_res.startswith("MATCH|"):
+            raise gl.vm.UserError("malformed consensus result")
+
         parts = consensus_res.split("|", 3)
-        final_outcome = parts[1] if len(parts) > 1 else "PARTIAL"
-        quote_flag = parts[2] if len(parts) > 2 else "UNGROUNDED"
-        final_quote = parts[3] if len(parts) > 3 else ""
+        if len(parts) != 4:
+            raise gl.vm.UserError("malformed consensus result")
+
+        final_outcome = parts[1]
+        if final_outcome not in ("KEPT", "BROKEN", "PARTIAL"):
+            raise gl.vm.UserError("malformed consensus result")
+
+        quote_flag = parts[2]
+        if quote_flag != "GROUNDED":
+            raise gl.vm.UserError("malformed consensus result")
+
+        final_quote = parts[3]
 
         now_str = ""
         if hasattr(gl, "message_raw") and isinstance(gl.message_raw, dict):
@@ -344,7 +359,7 @@ class CommitmentLedger(gl.Contract):
         record["outcome"] = final_outcome
         record["match_confirmed"] = True
         record["source_url"] = validated_url
-        record["resolution_quote"] = final_quote if quote_flag == "GROUNDED" else None
+        record["resolution_quote"] = final_quote
         record["resolved_at"] = now_str
         record["resolver"] = resolver_addr
 

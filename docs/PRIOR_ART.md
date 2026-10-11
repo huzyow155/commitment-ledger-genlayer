@@ -1,6 +1,6 @@
 # Prior Art Analysis: Commitment Tracking & Semantic Claim Matching
 
-This document analyzes prior art across GenLayer and decentralized systems regarding commitment tracking, promise ledgers, and semantic claim matching.
+This document analyzes prior art across decentralized systems regarding commitment tracking, promise registries, and semantic claim matching.
 
 ## Landscape Overview
 
@@ -20,14 +20,14 @@ In decentralized applications and agentic systems, tracking commitments (promise
 
 ## Detailed Comparison Points
 
-### 1. The Paraphrase-Dodging Vulnerability
+### 1. Paraphrase Resilience
 Traditional commitment registries suffer from paraphrase vulnerability:
 - A speaker pledges: *"We will ship the audited governance token staking module before the end of Q3 2026."*
 - When held accountable, bad actors dodge by pointing out phrasing differences or claiming resolutions apply to different statements.
 - Conversely, automated keyword searches cannot match resolution evidence phrased as: *"In September 2026, the team successfully launched their verified staking contract following the completion of the audit."*
 - `CommitmentLedger` extracts normalized canonical predicates (`subject` and `action`) upon registration. When a source URL is submitted, multi-validator consensus checks whether the fetched source text semantically pertains to that original commitment.
 
-### 2. Trap Defense (Superficial Similarity vs. Genuine Paraphrase)
+### 2. Distractor Handling (Superficial Similarity vs. Genuine Paraphrase)
 A naive fuzzy matcher or loose semantic search might conflate:
 - Original: *"Alice will deploy the cross-chain liquidity bridge by August."*
 - Different action: *"Alice deployed the cross-chain NFT bridge in August."* (Superficially similar subject and timeline, but completely different action).
