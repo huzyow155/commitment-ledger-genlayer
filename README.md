@@ -16,9 +16,9 @@ Public commitments (a DAO steward's roadmap promise, a project's stated deadline
 1. **Canonical Extraction at Registration**: When a commitment is registered, consensus validators extract a normalized canonical predicate (`subject`, `action`), storing it on-chain. Input text is wrapped in `<UNTRUSTED_TEXT>` delimiters to prevent prompt injection.
 2. **Allowlisted Source-Based Resolution (Option A)**: Anyone can submit a resolution, but instead of caller-written text, the caller must submit an allowlisted public source URL (`wikipedia.org`, `reuters.com`, `apnews.com`, `bbc.com`, `nasa.gov`, `noaa.gov`, `ecb.europa.eu`). The contract fetches and evaluates the page text directly.
 3. **Deterministic Outcome Gate**:
-   - If validators agree the fetched source does **not** match (`NOMATCH`), the transaction raises `UserError("evidence does not match this commitment")`, leaving the commitment open.
+   - If validators agree the fetched source does **not** match (`NOMATCH`), the transaction raises `UserError("source does not match this commitment")`, leaving the commitment open.
    - If the source matches, the outcome is classified (`KEPT`, `BROKEN`, `PARTIAL`).
-   - A grounded verbatim quote (>= 12 characters from the fetched page) is strictly enforced: an ungrounded quote forces `PARTIAL`, never a confident `KEPT` or `BROKEN`.
+   - A grounded verbatim quote (>= 12 characters from the fetched page) is strictly enforced: if the model matches the source but its quote is shorter than 12 characters or not a verbatim substring of the fetched text, the transaction reverts with `UserError("no grounded quote in source")` and the commitment stays `OPEN`. `PARTIAL` is written only when the quote is grounded and the model itself classifies the outcome as `PARTIAL`.
 
 ## Contract Coordinates (GenLayer Studionet)
 
@@ -81,12 +81,15 @@ All scenarios were executed against real public sources on GenLayer studionet wi
 
 | Case | Commitment ID | Register Tx | Resolve Tx | Status Name | Leader Result | Outcome | Source URL Used | Quote |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Case A (Trap Test)** | `bd37d1fb57d3` | `0x18722b91...dff1c` | `0xe745e76c...3ed0c` | `ACCEPTED` | `SUCCESS` | `KEPT` | `https://en.wikipedia.org/wiki/Apollo_11` | `"Apollo 11 (July 16–24, 1969) was the American spaceflight that first landed humans on the Moon"` |
-| **Case B (Broken)** | `8957209fbf0c` | `0xb4148c73...87b86` | `0xfabe1ec4...9260ee` | `ACCEPTED` | `SUCCESS` | `BROKEN` | `https://en.wikipedia.org/wiki/Apollo_13` | `"the landing was aborted after an oxygen tank in the service module (SM) exploded two days into the mission"` |
-| **Case C (Distractor Rejection)** | `777cff3cd53d` | `0x9d23690a...13a1` | `0xfb42396d...945a3` | `ACCEPTED` | `ERROR` | `null` (status `OPEN`) | `https://en.wikipedia.org/wiki/Falcon_9` | Reverted with `"source does not match this commitment"`, commitment preserved `OPEN` |
-| **Case D (Broad Objectives)** | `5acebf3f7a12` | `0x77109e7f...ef652` | `0x0ee9c652...61aff` | `ACCEPTED` | `SUCCESS` | `KEPT` | `https://en.wikipedia.org/wiki/Apollo_11` | `"After more than 21 hours on the surface, they rejoined Collins in lunar orbit, and the crew returned safely to Earth on July 24"` |
+| **Case A (Trap Test, KEPT)** | `bd37d1fb57d3` | `0x18722b91...dff1c` | `0xe745e76c...3ed0c` | `ACCEPTED` | `SUCCESS` | `KEPT` | `https://en.wikipedia.org/wiki/Apollo_11` | `"Apollo 11 (July 16–24, 1969) was the American spaceflight that first landed humans on the Moon"` |
+| **Case B (Grounded Quote, BROKEN)** | `8957209fbf0c` | `0xb4148c73...87b86` | `0xfabe1ec4...9260ee` | `ACCEPTED` | `SUCCESS` | `BROKEN` | `https://en.wikipedia.org/wiki/Apollo_13` | `"the landing was aborted after an oxygen tank in the service module (SM) exploded two days into the mission"` |
+| **Case C (Distractor Rejection, NOMATCH)** | `777cff3cd53d` | `0x9d23690a...13a1` | `0xfb42396d...945a3` | `ACCEPTED` | `ERROR` | `null` (status `OPEN`) | `https://en.wikipedia.org/wiki/Falcon_9` | Reverted with `"source does not match this commitment"`, commitment preserved `OPEN` |
+| **Case D (Broad Objectives, KEPT)** | `5acebf3f7a12` | `0x77109e7f...ef652` | `0x0ee9c652...61aff` | `ACCEPTED` | `SUCCESS` | `KEPT` | `https://en.wikipedia.org/wiki/Apollo_11` | `"After more than 21 hours on the surface, they rejoined Collins in lunar orbit, and the crew returned safely to Earth on July 24"` |
+| **Case E (Genuine Partial Fulfillment, PARTIAL)** | `a7ff11e6c969` | `0xeaad301f...7bbe` | `0x22255217...106c` | `ACCEPTED` | `SUCCESS` | `PARTIAL` | `https://en.wikipedia.org/wiki/Apollo_13` | `"the landing was aborted after an oxygen tank in the service module (SM) exploded"` |
 
 ### On-Chain Negative Rejection Tests
+
+All revert payloads below were verified by querying JSON-RPC `eth_getTransactionByHash` with the transaction hash and decoding base64 field `result.consensus_data.leader_receipt[0].result` (first byte sliced as status prefix, remainder decoded as UTF-8):
 
 | Test | Submitted Parameter | Transaction Hash | Status Name | Leader Execution Result | Revert Payload |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -95,6 +98,9 @@ All scenarios were executed against real public sources on GenLayer studionet wi
 | Free-Text Deadline | `"end of Q2"` | `0xee70c7ad2011db0ad86a1ec12c802e6c4556002700293ad0322c66c6772880a5` | `ACCEPTED` | `ERROR` | `"deadline_hint must be YYYY-MM-DD"` |
 | Premature Resolution | `2099-01-01` before deadline | `0x43f6587c18ae2f9b3d34c4c99ca056a9fc8b122e6c1e967ce96a51d594e42535` | `ACCEPTED` | `ERROR` | `"cannot resolve before deadline date"` |
 | Already Resolved | Resolution on `bd37d1fb57d3` | `0xb700d2e9be062c18b973dadbc5f5e97cb9cda337ebab1381ac5d20a60d43a666` | `ACCEPTED` | `ERROR` | `"commitment already resolved"` |
+
+### Note on the UNGROUNDED Rejection Branch
+In on-chain testing against real Wikipedia sources, validators either found grounded quotes in the article header text or evaluated absent/distant details as `NOMATCH` distractor evidence (reverting with `"source does not match this commitment"` and preserving the `OPEN` status, as seen in `0x41b93dbfa438310cae1be0a0096af3041e369e85b1099618f2ee431c344f5c23`). The `UNGROUNDED` branch (`"no grounded quote in source"`) where the model produces a matching verdict with an ungrounded hallucinated quote or a quote shorter than 12 characters is fully exercised and verified by unit tests: `test_ungrounded_quote_rejected_and_leaves_open` and `test_quote_under_12_chars_rejected_and_leaves_open` in `tests/test_layer2_mocked.py`.
 
 ## Trust Model and Known Limitations
 

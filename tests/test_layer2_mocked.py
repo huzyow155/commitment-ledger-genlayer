@@ -10,7 +10,7 @@ class TestLayer2Mocked(unittest.TestCase):
     """
     Layer 2 tests:
     - Resolving an already-resolved commitment is rejected.
-    - An ungrounded quote forces PARTIAL, never a confident KEPT/BROKEN.
+    - An ungrounded quote raises UserError("no grounded quote in source") and leaves commitment OPEN.
     - A NOMATCH result does not write any outcome to storage and raises UserError.
     - Resolving non-existent commitment raises UserError.
     - Source fetch failure leaves commitment OPEN with no outcome written.

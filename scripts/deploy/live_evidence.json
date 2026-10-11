@@ -3,7 +3,7 @@
   "deployTxHash": "0x9b738652bceac390143a01f7dcf7ca24b7a92714430d950c34f9ae2936de4f52",
   "cases": {
     "caseA": {
-      "title": "KEPT via genuine paraphrase from real Wikipedia source (trap test)",
+      "title": "Case A (Trap Test, KEPT)",
       "commitmentId": "bd37d1fb57d3",
       "rawText": "The United States Apollo 11 mission will land human astronauts on the lunar surface before 1970.",
       "deadlineHint": "1970-01-01",
@@ -31,7 +31,7 @@
       }
     },
     "caseB": {
-      "title": "BROKEN with grounded quote from real Wikipedia source",
+      "title": "Case B (Grounded Quote, BROKEN)",
       "commitmentId": "8957209fbf0c",
       "rawText": "Apollo 13 will successfully land on the Moon.",
       "deadlineHint": "1970-05-01",
@@ -59,7 +59,7 @@
       }
     },
     "caseC": {
-      "title": "Correctly rejected as NOMATCH (trap test distractor)",
+      "title": "Case C (Distractor Rejection, NOMATCH)",
       "commitmentId": "777cff3cd53d",
       "rawText": "NASA will verify the James Webb Space Telescope deployment.",
       "deadlineHint": "2022-01-01",
@@ -68,6 +68,7 @@
       "resolveTx": "0xfb42396d32522f8b143f16155e35a62233629f9da9278788d1cbbf5ee1a945a3",
       "statusName": "ACCEPTED",
       "leaderExecutionResult": "ERROR",
+      "revertPayload": "source does not match this commitment",
       "finalRecord": {
         "schema_version": "2.1.0",
         "commitment_id": "777cff3cd53d",
@@ -87,7 +88,7 @@
       }
     },
     "caseD": {
-      "title": "PARTIAL resolution from broad mission objectives description",
+      "title": "Case D (Broad Objectives, KEPT)",
       "commitmentId": "5acebf3f7a12",
       "rawText": "Apollo 11 spacecraft will complete all scheduled mission objectives.",
       "deadlineHint": "1970-01-01",
@@ -113,26 +114,118 @@
         "resolved_at": "2026-10-11T17:05:47.087899Z",
         "resolver": "0xf8223276B10B629a175899cc136A31e2114DC798"
       }
+    },
+    "caseE": {
+      "title": "Case E (Genuine Partial Fulfillment, PARTIAL)",
+      "commitmentId": "a7ff11e6c969",
+      "rawText": "Apollo 13 will land on the Moon and return its crew to Earth safely.",
+      "deadlineHint": "1970-05-01",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_13",
+      "registerTx": "0xeaad301f9936810d9444853dee124a17e5cde35f616bbf45df5154dc891d7bbe",
+      "resolveTx": "0x222552175590d4c492115f0a853fd0181da2cd355b49a63707a1e8e90a45106c",
+      "statusName": "ACCEPTED",
+      "leaderExecutionResult": "SUCCESS",
+      "finalRecord": {
+        "schema_version": "2.1.0",
+        "commitment_id": "a7ff11e6c969",
+        "registrant": "0xAa21981332E99159256E9Bc5b9eF264B140c6D95",
+        "raw_text": "Apollo 13 will land on the Moon and return its crew to Earth safely.",
+        "subject": "apollo 13",
+        "action": "land on the moon and return crew to earth safely",
+        "deadline_hint": "1970-05-01",
+        "created_round": 6,
+        "status": "RESOLVED",
+        "outcome": "PARTIAL",
+        "source_url": "https://en.wikipedia.org/wiki/Apollo_13",
+        "resolution_quote": "the landing was aborted after an oxygen tank in the service module (SM) exploded",
+        "match_confirmed": true,
+        "resolved_at": "2026-10-11T17:20:02.287947Z",
+        "resolver": "0xAa21981332E99159256E9Bc5b9eF264B140c6D95"
+      }
     }
   },
+  "partialAttempts": [
+    {
+      "attemptIndex": 1,
+      "commitmentId": "a7ff11e6c969",
+      "rawText": "Apollo 13 will land on the Moon and return its crew to Earth safely.",
+      "deadline": "1970-05-01",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_13",
+      "registerTx": "0xeaad301f9936810d9444853dee124a17e5cde35f616bbf45df5154dc891d7bbe",
+      "resolveTx": "0x222552175590d4c492115f0a853fd0181da2cd355b49a63707a1e8e90a45106c",
+      "statusName": "ACCEPTED",
+      "leaderExecutionResult": "SUCCESS",
+      "recordStatus": "RESOLVED",
+      "recordOutcome": "PARTIAL",
+      "resolutionQuote": "the landing was aborted after an oxygen tank in the service module (SM) exploded"
+    }
+  ],
+  "ungroundedAttempts": [
+    {
+      "attemptIndex": 1,
+      "commitmentId": "890f6f54ea37",
+      "rawText": "The Apollo 11 lunar module will lift off from the lunar surface on July 21 1969.",
+      "deadline": "1970-01-01",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_11",
+      "registerTx": "0x5dff8fbc6b5bc5599746c6f8663e127b981fe3af1c37504a9a750ada4853772e",
+      "resolveTx": "0xc50a97bc4b98979990b322ce0f11ade1ac88fa0225d3c935ffda12bf5b3d73d8",
+      "statusName": "ACCEPTED",
+      "leaderExecutionResult": "SUCCESS",
+      "recordStatus": "RESOLVED",
+      "recordOutcome": "KEPT",
+      "resolutionQuote": "Return launch July 21, 1969, 17:54:00 UTC",
+      "note": "Wikipedia infobox at head of page contained verbatim return launch quote, so quote was grounded."
+    },
+    {
+      "attemptIndex": 2,
+      "commitmentId": "890f6f54ea37",
+      "rawText": "NASA Apollo program total financial expenditure reached over twenty billion dollars by 1973.",
+      "deadline": "1975-01-01",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_11",
+      "registerTx": "0x4e4ebbba5ef4d3a80ef07c9849c6537ec40ddeac7cccbe2b8929265ecdd16c2d",
+      "resolveTx": "0x647de249785999396d2587e9895ebe310865ab46e08a3bff527f0fb36d9d0ca2",
+      "statusName": "ACCEPTED",
+      "leaderExecutionResult": "ERROR",
+      "revertPayload": "commitment already resolved",
+      "note": "Registration transaction returned UNDETERMINED due to validator divergence, so resolve targeted previous CID which was already resolved."
+    },
+    {
+      "attemptIndex": 3,
+      "commitmentId": "9463fdfc4694",
+      "rawText": "The Apollo 11 crew will complete biological decontamination procedures aboard the USS Hornet in the Pacific Ocean.",
+      "deadline": "1970-01-01",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_11",
+      "registerTx": "0xc40ed3ff1aeec098d15f3c0970d95533f3de34e1df72767976a321c3c80ae399",
+      "resolveTx": "0x41b93dbfa438310cae1be0a0096af3041e369e85b1099618f2ee431c344f5c23",
+      "statusName": "ACCEPTED",
+      "leaderExecutionResult": "ERROR",
+      "revertPayload": "source does not match this commitment",
+      "recordStatus": "OPEN",
+      "recordOutcome": null,
+      "note": "Decontamination detail absent in first 6000 chars; validators evaluated as NOMATCH distractor rather than matching with ungrounded quote."
+    }
+  ],
   "negativeTests": {
     "nonAllowlistedDomain": {
       "url": "https://github.com/nasa/webb",
       "txHash": "0x3db3ee1df9f6a5355f1ffb335d21a7ea45f487c87b6ce470a393f535b1d508f7",
       "statusName": "ACCEPTED",
-      "leaderExecutionResult": "ERROR"
+      "leaderExecutionResult": "ERROR",
+      "revertPayload": "source_url domain not in authorized allowlist"
     },
     "insecureScheme": {
       "url": "http://en.wikipedia.org/wiki/Falcon_9",
       "txHash": "0x5180df851b7bf0c6bd4af7483df445e4b1dfaf747512b4bb1ded61430f0889d2",
       "statusName": "ACCEPTED",
-      "leaderExecutionResult": "ERROR"
+      "leaderExecutionResult": "ERROR",
+      "revertPayload": "source_url scheme must be https"
     },
     "freeTextDeadline": {
       "attemptedDeadline": "end of Q2",
       "txHash": "0xee70c7ad2011db0ad86a1ec12c802e6c4556002700293ad0322c66c6772880a5",
       "statusName": "ACCEPTED",
-      "leaderExecutionResult": "ERROR"
+      "leaderExecutionResult": "ERROR",
+      "revertPayload": "deadline_hint must be YYYY-MM-DD"
     },
     "prematureResolution": {
       "commitmentId": "c6d31c5dcdc1",
@@ -140,13 +233,15 @@
       "registerTx": "0x471fcd437e0c6c68a7b979d06b6dcf06f457bc457be694f49db3a59f756099f6",
       "resolveTx": "0x43f6587c18ae2f9b3d34c4c99ca056a9fc8b122e6c1e967ce96a51d594e42535",
       "statusName": "ACCEPTED",
-      "leaderExecutionResult": "ERROR"
+      "leaderExecutionResult": "ERROR",
+      "revertPayload": "cannot resolve before deadline date"
     },
     "alreadyResolved": {
       "commitmentId": "bd37d1fb57d3",
       "txHash": "0xb700d2e9be062c18b973dadbc5f5e97cb9cda337ebab1381ac5d20a60d43a666",
       "statusName": "ACCEPTED",
-      "leaderExecutionResult": "ERROR"
+      "leaderExecutionResult": "ERROR",
+      "revertPayload": "commitment already resolved"
     }
   }
 }
