@@ -1,0 +1,108 @@
+{
+  "contractAddress": "0x13b20E2DBc4E8C2D30e3E484D78ee90f583882F3",
+  "deployTxHash": "0x50015b28539130d6bebb768639427029725183f3b8b6b8b4490510c68ccfc235",
+  "localCodeSha256": "8306c5cb7a8316ff6ef737e728a03263275042bce402b821b4941cd880d84aeb",
+  "cases": {
+    "caseA": {
+      "title": "KEPT via genuine paraphrase (trap test)",
+      "commitmentId": "2179cd4d54f1",
+      "rawText": "Hyper commits to ship the decentralized commitment ledger on studionet by Q4 2026.",
+      "registerTx": "0xb49a0575519e3e9b708a96b773e72a42be41379fc487dfeb80d552a2987ce1bf",
+      "registerLatency": 15.76,
+      "evidenceText": "Public announcement: As of October 2026, Hyper has successfully deployed and verified the decentralized commitment ledger intelligent contract on GenLayer studionet.",
+      "resolveTx": "0x33d45785766d3a1bcdc23d42750506e9d5f294967c3d98e0b13c5dee1457f72e",
+      "resolveLatency": 25.75,
+      "finalRecord": {
+        "schema_version": "1.0.0",
+        "commitment_id": "2179cd4d54f1",
+        "registrant": "0xA78a710A56eE6526226E5AC1903427df2680d9Bc",
+        "raw_text": "Hyper commits to ship the decentralized commitment ledger on studionet by Q4 2026.",
+        "subject": "hyper",
+        "action": "ship decentralized commitment ledger on studionet by q4 2026",
+        "deadline_hint": "2026-12-31",
+        "created_round": 1,
+        "status": "RESOLVED",
+        "outcome": "KEPT",
+        "resolution_evidence": "Public announcement: As of October 2026, Hyper has successfully deployed and verified the decentralized commitment ledger intelligent contract on GenLayer studionet.",
+        "resolution_quote": "Hyper has successfully deployed and verified the decentralized commitment ledger intelligent contract on GenLayer studionet.",
+        "match_confirmed": true
+      }
+    },
+    "caseB": {
+      "title": "BROKEN with grounded quote",
+      "commitmentId": "31e4d91ce128",
+      "rawText": "The core engineering guild will publish the formal verification specification by September 15 2026.",
+      "registerTx": "0x17ef1d169fbe495e83463b6de60d296a3b8d9d60308d0cd92592ec47a5ccf7b5",
+      "registerLatency": 16.077,
+      "evidenceText": "Guild meeting minutes: Due to unexpected resource constraints, the core engineering guild formally missed the deadline and failed to publish the formal verification specification.",
+      "resolveTx": "0xa5ef4273019f16edffdf0bd929dd423bc692c5d5b141345193250b08b0f4f024",
+      "resolveLatency": 15.727,
+      "finalRecord": {
+        "schema_version": "1.0.0",
+        "commitment_id": "31e4d91ce128",
+        "registrant": "0xdde3588ACCb7386ED0302a2fce16e4d051338390",
+        "raw_text": "The core engineering guild will publish the formal verification specification by September 15 2026.",
+        "subject": "core engineering guild",
+        "action": "publish formal verification specification by september 15 2026",
+        "deadline_hint": "2026-09-15",
+        "created_round": 2,
+        "status": "RESOLVED",
+        "outcome": "BROKEN",
+        "resolution_evidence": "Guild meeting minutes: Due to unexpected resource constraints, the core engineering guild formally missed the deadline and failed to publish the formal verification specification.",
+        "resolution_quote": "the core engineering guild formally missed the deadline and failed to publish the formal verification specification.",
+        "match_confirmed": true
+      }
+    },
+    "caseC": {
+      "title": "Correctly rejected as NOMATCH (trap test distractor)",
+      "commitmentId": "f375b420abcb",
+      "rawText": "Hyper promises to conduct a community gas subsidy audit by October 2026.",
+      "registerTx": "0xa10a53a2adcd816c8558b44bbf492293a0468b364f677a45b1240bff5a02bf87",
+      "registerLatency": 35.345,
+      "evidenceText": "Community bulletin: Hyper successfully organized an in-person developer hackathon in Berlin during October 2026.",
+      "resolveTx": "0xab04171bfeb77ba94c1dc5902fbf1334aa5bcd80a07f8b9cfe77715d879f5d50",
+      "resolveLatency": 18.588,
+      "resolveReceiptLeaderResult": "ERROR",
+      "finalRecord": {
+        "schema_version": "1.0.0",
+        "commitment_id": "f375b420abcb",
+        "registrant": "0xdde3588ACCb7386ED0302a2fce16e4d051338390",
+        "raw_text": "Hyper promises to conduct a community gas subsidy audit by October 2026.",
+        "subject": "hyper",
+        "action": "conduct a community gas subsidy audit by october 2026",
+        "deadline_hint": "2026-10-31",
+        "created_round": 3,
+        "status": "OPEN",
+        "outcome": null,
+        "resolution_evidence": null,
+        "resolution_quote": null,
+        "match_confirmed": false
+      }
+    },
+    "caseD": {
+      "title": "PARTIAL resolution from ambiguous evidence",
+      "commitmentId": "11e25997abea",
+      "rawText": "The security team will finalize 100 percent of the vulnerability bounty payouts by November 2026.",
+      "registerTx": "0x181e2f278d44847ce28469992f1c847b61e14fa6ceb013b2f5f60f0a208043e5",
+      "registerLatency": 32.227,
+      "evidenceText": "Security disclosure update: The security team processed several critical bounty claims, paying roughly half of reported bounties while remaining submissions remain under dispute and unfinalized.",
+      "resolveTx": "0x98dc864a5fa63547f6343ed3cc0a3ceda9779eb099a5531129c560a439bc7f92",
+      "resolveLatency": 101.648,
+      "finalRecord": {
+        "schema_version": "1.0.0",
+        "commitment_id": "11e25997abea",
+        "registrant": "0xdde3588ACCb7386ED0302a2fce16e4d051338390",
+        "raw_text": "The security team will finalize 100 percent of the vulnerability bounty payouts by November 2026.",
+        "subject": "security team",
+        "action": "finalize 100 percent of vulnerability bounty payouts",
+        "deadline_hint": "2026-11-30",
+        "created_round": 4,
+        "status": "RESOLVED",
+        "outcome": "PARTIAL",
+        "resolution_evidence": "Security disclosure update: The security team processed several critical bounty claims, paying roughly half of reported bounties while remaining submissions remain under dispute and unfinalized.",
+        "resolution_quote": "paying roughly half of reported bounties while remaining submissions remain under dispute and unfinalized",
+        "match_confirmed": true
+      }
+    }
+  }
+}
