@@ -24,21 +24,21 @@ To eliminate this vulnerability, `CommitmentLedger` implements **Option A (Sourc
 
 ```json
 {
-  "schema_version": "2.0.0",
-  "commitment_id": "8a63544a69ae",
-  "registrant": "0x4aA4504eE1540949001e7cE94C1245ba40710980",
+  "schema_version": "2.1.0",
+  "commitment_id": "bd37d1fb57d3",
+  "registrant": "0xf8223276B10B629a175899cc136A31e2114DC798",
   "raw_text": "The United States Apollo 11 mission will land human astronauts on the lunar surface before 1970.",
-  "deadline_hint": "none",
+  "deadline_hint": "1970-01-01",
   "subject": "apollo 11 mission",
   "action": "land human astronauts on the lunar surface before 1970",
-  "created_round": 2,
+  "created_round": 1,
   "status": "RESOLVED",
   "outcome": "KEPT",
   "source_url": "https://en.wikipedia.org/wiki/Apollo_11",
   "resolution_quote": "Apollo 11 (July 16–24, 1969) was the American spaceflight that first landed humans on the Moon",
   "match_confirmed": true,
-  "resolved_at": "2026-10-11T16:29:21.702264Z",
-  "resolver": "0x4aA4504eE1540949001e7cE94C1245ba40710980"
+  "resolved_at": "2026-10-11T17:01:48.668817Z",
+  "resolver": "0xf8223276B10B629a175899cc136A31e2114DC798"
 }
 ```
 
@@ -51,9 +51,10 @@ To eliminate this vulnerability, `CommitmentLedger` implements **Option A (Sourc
 ### Phase 1: Canonical Extraction at Registration
 `register_commitment(raw_text, deadline_hint)`:
 1. Validates `raw_text` (<= 400 chars, pure ASCII).
-2. Wraps input inside strict `<UNTRUSTED_TEXT>` delimiters with explicit instructions that content is untrusted data, preventing prompt injection attacks.
-3. Multi-validator consensus extracts `{ "subject": "<phrase>", "action": "<phrase>" }`.
-4. Canonical string returned to `strict_eq`: `"EXTRACT|<subject>|<action>"`.
+2. Validates `deadline_hint` as a strict calendar date in `YYYY-MM-DD` format with leap year checks (rejects invalid dates like "end of Q2" with `gl.vm.UserError("deadline_hint must be YYYY-MM-DD")`).
+3. Wraps input inside strict `<UNTRUSTED_TEXT>` delimiters with explicit instructions that content is untrusted data, preventing prompt injection attacks.
+4. Multi-validator consensus extracts `{ "subject": "<phrase>", "action": "<phrase>" }`.
+5. Canonical string returned to `strict_eq`: `"EXTRACT|<subject>|<action>"`.
 
 ### Phase 2: Source-Based Semantic Match & Outcome Verification
 Anyone can call `submit_resolution(commitment_id, source_url)`:
@@ -64,18 +65,21 @@ Anyone can call `submit_resolution(commitment_id, source_url)`:
    - Domain must belong to the fixed allowlist: `wikipedia.org`, `reuters.com`, `apnews.com`, `bbc.com`, `nasa.gov`, `noaa.gov`, `ecb.europa.eu`.
    - Rejects IP literals, punycode, whitespace, and URLs > 300 characters.
 2. **Deadline Date Guard**:
-   - If `deadline_hint` is formatted as an ISO date (`YYYY-MM-DD`), the contract enforces that `current_date >= deadline_date` using `gl.message_raw["datetime"]`.
+   - Enforces `current_date >= deadline_hint` using deterministic clock `gl.message_raw["datetime"]`.
+   - If earlier, raises `gl.vm.UserError("cannot resolve before deadline date")`. If clock missing, raises `gl.vm.UserError("clock unavailable")`.
 3. **Web Retrieval (Nondeterministic)**:
    - Validators execute `gl.nondet.web.render(source_url, mode="text")` with fallback to `gl.nondet.web.get`.
    - Truncates retrieved text to a fixed bound (first 6,000 characters).
    - If text is empty or fetch fails, raises `gl.vm.UserError("source fetch failed")`, keeping the commitment `OPEN`.
 4. **Semantic Adjudication**:
    - Retrieved text is enclosed in `<UNTRUSTED_SOURCE>` delimiters.
-   - The LLM determines if the source semantically matches the commitment (`MATCH` vs `NOMATCH`).
+   - The LLM determines if the source semantically describes the commitment (`MATCH` vs `NOMATCH`).
    - If `NOMATCH`, returns canonical string `"NOMATCH|NONE|NONE"`.
    - If `MATCH`, classifies outcome (`KEPT`, `BROKEN`, `PARTIAL`) and extracts a quote (<= 160 chars).
-   - Deterministic quote check: length >= 12 chars and verbatim in the fetched text. Ungrounded quotes force `PARTIAL`.
+   - Deterministic quote check: length >= 12 chars and verbatim in the fetched text.
+   - If ungrounded, returns canonical string `"UNGROUNDED|NONE|NONE"`.
 5. **Consensus Equivalence (`gl.eq_principle.strict_eq`)**:
    - Compares flat canonical string across validators.
-   - If `"NOMATCH"`, raises `gl.vm.UserError("evidence does not match this commitment")` with zero storage state mutation.
-   - If `"MATCH"`, updates record status to `RESOLVED` with outcome, quote, timestamp, and resolver address.
+   - If `"NOMATCH"`, raises `gl.vm.UserError("source does not match this commitment")` with zero storage state mutation.
+   - If `"UNGROUNDED"`, raises `gl.vm.UserError("no grounded quote in source")` with zero storage state mutation, keeping commitment `OPEN`.
+   - If `"MATCH"`, updates record status to `RESOLVED` with outcome, quote, timestamp, and resolver address. Permanent and irreversible.

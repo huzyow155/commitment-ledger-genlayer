@@ -9,7 +9,7 @@ import urllib.parse
 from typing import Any
 from genlayer import *
 
-SCHEMA_VERSION = "2.0.0"
+SCHEMA_VERSION = "2.1.0"
 MAX_RAW_TEXT_LEN = 400
 MAX_URL_LEN = 300
 MIN_QUOTE_LEN = 12
@@ -83,19 +83,45 @@ def _validate_source_url(url: str) -> str:
     return clean_url
 
 
+def _validate_deadline_date(date_str: str) -> str:
+    """Validate deadline_hint is exactly YYYY-MM-DD with strict calendar days and leap years."""
+    if not isinstance(date_str, str):
+        raise gl.vm.UserError("deadline_hint must be YYYY-MM-DD")
+    clean_date = date_str.strip()
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", clean_date):
+        raise gl.vm.UserError("deadline_hint must be YYYY-MM-DD")
+
+    parts = clean_date.split("-")
+    year = int(parts[0])
+    month = int(parts[1])
+    day = int(parts[2])
+
+    if month < 1 or month > 12:
+        raise gl.vm.UserError("deadline_hint must be YYYY-MM-DD")
+
+    # Calendar month days check
+    days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    is_leap = (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
+    max_days = 29 if (month == 2 and is_leap) else days_in_month[month - 1]
+
+    if day < 1 or day > max_days:
+        raise gl.vm.UserError("deadline_hint must be YYYY-MM-DD")
+
+    return clean_date
+
+
 def _check_deadline_guard(deadline_hint: str) -> None:
-    """If deadline_hint parses as ISO date (YYYY-MM-DD), reject submit_resolution before that date."""
-    if not isinstance(deadline_hint, str):
-        return
-    clean_hint = deadline_hint.strip()
-    if re.match(r"^\d{4}-\d{2}-\d{2}$", clean_hint):
-        current_dt = ""
-        if hasattr(gl, "message_raw") and isinstance(gl.message_raw, dict):
-            current_dt = str(gl.message_raw.get("datetime", "")).strip()
-        if current_dt and len(current_dt) >= 10:
-            current_date_str = current_dt[:10]
-            if current_date_str < clean_hint:
-                raise gl.vm.UserError("cannot resolve before deadline date")
+    """Enforce current_date >= deadline_hint using deterministic clock."""
+    current_dt = ""
+    if hasattr(gl, "message_raw") and isinstance(gl.message_raw, dict):
+        current_dt = str(gl.message_raw.get("datetime", "")).strip()
+
+    if not current_dt or len(current_dt) < 10:
+        raise gl.vm.UserError("clock unavailable")
+
+    current_date_str = current_dt[:10]
+    if current_date_str < deadline_hint:
+        raise gl.vm.UserError("cannot resolve before deadline date")
 
 
 class CommitmentLedger(gl.Contract):
@@ -150,6 +176,8 @@ class CommitmentLedger(gl.Contract):
         if len(cleaned_text) > MAX_RAW_TEXT_LEN:
             raise gl.vm.UserError("raw_text exceeds 400 characters")
 
+        validated_deadline = _validate_deadline_date(deadline_hint)
+
         sender = gl.message.sender_address.as_hex
         current_nonce = int(self.meta.get("nonce", "0")) + 1
         self.meta["nonce"] = str(current_nonce)
@@ -191,7 +219,7 @@ class CommitmentLedger(gl.Contract):
             "raw_text": cleaned_text,
             "subject": extracted_subject,
             "action": extracted_action,
-            "deadline_hint": deadline_hint.strip()[:60],
+            "deadline_hint": validated_deadline,
             "created_round": current_nonce,
             "status": "OPEN",
             "outcome": None,
@@ -284,21 +312,22 @@ class CommitmentLedger(gl.Contract):
             is_grounded = (len(raw_quote) >= MIN_QUOTE_LEN) and (raw_quote in truncated_text)
 
             if not is_grounded:
-                # Force to PARTIAL if quote is not properly grounded
-                outcome = "PARTIAL"
-                quote_flag = "UNGROUNDED"
-                sanitized_quote = ""
-            else:
-                outcome = raw_outcome
-                quote_flag = "GROUNDED"
-                sanitized_quote = raw_quote.replace("|", " ").replace("\n", " ")[:160]
+                return "UNGROUNDED|NONE|NONE"
+
+            outcome = raw_outcome
+            quote_flag = "GROUNDED"
+            # Normalize whitespace and delimiters before consensus return
+            sanitized_quote = " ".join(raw_quote.replace("|", " ").split())[:160]
 
             return f"MATCH|{outcome}|{quote_flag}|{sanitized_quote}"
 
         consensus_res = gl.eq_principle.strict_eq(run_resolution_check)
 
         if consensus_res.startswith("NOMATCH"):
-            raise gl.vm.UserError("evidence does not match this commitment")
+            raise gl.vm.UserError("source does not match this commitment")
+
+        if consensus_res.startswith("UNGROUNDED"):
+            raise gl.vm.UserError("no grounded quote in source")
 
         parts = consensus_res.split("|", 3)
         final_outcome = parts[1] if len(parts) > 1 else "PARTIAL"

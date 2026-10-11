@@ -1,12 +1,12 @@
 {
   "commitmentLedger": {
     "contract": "CommitmentLedger",
-    "deployTxHash": "0xc8461e53602c7cc610eab8d99bb8f277b388debb1366736529f90439ba8e4a6b",
+    "deployTxHash": "0x9b738652bceac390143a01f7dcf7ca24b7a92714430d950c34f9ae2936de4f52",
     "rpcMethod": "eth_getTransactionByHash",
     "rpcField": "result.data.contract_code",
-    "localSha256": "f490ea63b9fc604586ee6247f6c8f22ea7e92398ca14fca73ac2fdac13dcb8d0",
-    "chainSha256": "f490ea63b9fc604586ee6247f6c8f22ea7e92398ca14fca73ac2fdac13dcb8d0",
+    "localSha256": "661ae1f9c9f15004a154e00472921cce89a60995b129a64d7fbd50fc8fe98263",
+    "chainSha256": "661ae1f9c9f15004a154e00472921cce89a60995b129a64d7fbd50fc8fe98263",
     "match": true,
-    "sourceBytesLength": 13950
+    "sourceBytesLength": 14865
   }
 }

@@ -31,7 +31,7 @@ Traditional commitment registries suffer from paraphrase vulnerability:
 A naive fuzzy matcher or loose semantic search might conflate:
 - Original: *"Alice will deploy the cross-chain liquidity bridge by August."*
 - Different action: *"Alice deployed the cross-chain NFT bridge in August."* (Superficially similar subject and timeline, but completely different action).
-`CommitmentLedger` validators evaluate whether the action in the source text matches the registered commitment action, rejecting distractors with a `gl.vm.UserError("evidence does not match this commitment")`, leaving the commitment open.
+`CommitmentLedger` validators evaluate whether the action in the source text matches the registered commitment action, rejecting distractors with a `gl.vm.UserError("source does not match this commitment")`, leaving the commitment open.
 
 ### 3. Source-Based Grounded Quote Requirement
 To prevent circularity and hallucinations:
@@ -39,4 +39,4 @@ To prevent circularity and hallucinations:
 - Callers cannot supply arbitrary caller-written evidence text.
 - Quoted text must be at least 12 characters long.
 - Quoted text must exist verbatim within the fetched public page text.
-- If a quote fails grounded verification, the outcome is forced to `PARTIAL`, preventing ungrounded `KEPT` or `BROKEN` verdicts.
+- If a quote fails grounded verification, the resolution reverts with `gl.vm.UserError("no grounded quote in source")`, leaving the commitment open rather than locking an ungrounded outcome.

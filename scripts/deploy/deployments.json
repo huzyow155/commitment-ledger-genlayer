@@ -3,15 +3,20 @@
   "chainId": 61999,
   "rpc": "https://studio.genlayer.com/api",
   "explorerBase": "https://explorer-studio.genlayer.com",
-  "contractAddress": "0x8a5269aa724E77D799b3F0dbbaeee7683157f52d",
-  "deployTxHash": "0xc8461e53602c7cc610eab8d99bb8f277b388debb1366736529f90439ba8e4a6b",
+  "contractAddress": "0x0A4Dc27c06520EA1EbcAEAFBF94f90b2AbDc6aa1",
+  "deployTxHash": "0x9b738652bceac390143a01f7dcf7ca24b7a92714430d950c34f9ae2936de4f52",
   "deployStatus": "ACCEPTED",
   "consensusResult": "MAJORITY_AGREE",
   "executionResult": "SUCCESS",
   "sourceFile": "contracts/CommitmentLedger.py",
-  "sourceSha256": "f490ea63b9fc604586ee6247f6c8f22ea7e92398ca14fca73ac2fdac13dcb8d0",
-  "explorerUrl": "https://explorer-studio.genlayer.com/address/0x8a5269aa724E77D799b3F0dbbaeee7683157f52d",
+  "sourceSha256": "661ae1f9c9f15004a154e00472921cce89a60995b129a64d7fbd50fc8fe98263",
+  "explorerUrl": "https://explorer-studio.genlayer.com/address/0x0A4Dc27c06520EA1EbcAEAFBF94f90b2AbDc6aa1",
   "supersededDeployments": [
+    {
+      "address": "0x8a5269aa724E77D799b3F0dbbaeee7683157f52d",
+      "deployTxHash": "0xc8461e53602c7cc610eab8d99bb8f277b388debb1366736529f90439ba8e4a6b",
+      "reason": "Superseded by v2.1.0 (ungrounded quote fallback removal and mandatory strict deadline validation)"
+    },
     {
       "address": "0x13b20E2DBc4E8C2D30e3E484D78ee90f583882F3",
       "deployTxHash": "0x50015b28539130d6bebb768639427029725183f3b8b6b8b4490510c68ccfc235",

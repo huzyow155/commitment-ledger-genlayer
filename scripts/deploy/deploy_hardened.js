@@ -61,6 +61,11 @@ async function main() {
     explorerUrl: `https://explorer-studio.genlayer.com/address/${contractAddress}`,
     supersededDeployments: [
       {
+        address: "0x8a5269aa724E77D799b3F0dbbaeee7683157f52d",
+        deployTxHash: "0xc8461e53602c7cc610eab8d99bb8f277b388debb1366736529f90439ba8e4a6b",
+        reason: "Superseded by v2.1.0 (ungrounded quote fallback removal and mandatory strict deadline validation)"
+      },
+      {
         address: "0x13b20E2DBc4E8C2D30e3E484D78ee90f583882F3",
         deployTxHash: "0x50015b28539130d6bebb768639427029725183f3b8b6b8b4490510c68ccfc235",
         reason: "Superseded by source-based resolution hardening (Option A)"

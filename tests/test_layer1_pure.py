@@ -5,17 +5,52 @@ import sys
 import os
 
 from genlayer import gl, GlVM
-from contracts.CommitmentLedger import _validate_source_url, CommitmentLedger
+from contracts.CommitmentLedger import _validate_source_url, _validate_deadline_date, _check_deadline_guard, CommitmentLedger
 
 
 class TestLayer1Pure(unittest.TestCase):
     """
     Layer 1 tests:
     - URL validator table tests (allowlist, schemes, ports, IP literals, length)
+    - Deadline date validator table tests (leap years, valid dates, invalid calendar days/months)
     - Canonical-string formatting and defensive JSON parsing
     - Grounded-quote check (verbatim in fetched text, >= 12 chars)
     - Paraphrase matching vs NOMATCH distractor logic
     """
+
+    def test_deadline_validator_accepts_valid_dates(self):
+        valid_dates = [
+            "2026-10-12",
+            "2024-02-29",  # Leap year
+            "2000-02-29",  # 400-year leap year
+            "1970-01-01",
+            "2025-12-31",
+            "2026-04-30",  # 30-day month
+        ]
+        for d in valid_dates:
+            res = _validate_deadline_date(d)
+            self.assertEqual(res, d)
+
+    def test_deadline_validator_rejects_invalid_dates(self):
+        invalid_dates = [
+            "end of Q2",
+            "2026-13-01",  # month 13
+            "2026-00-10",  # month 0
+            "2026-02-29",  # non-leap year Feb 29
+            "1900-02-29",  # non-leap year (divisible by 100 but not 400)
+            "2026-04-31",  # April has 30 days
+            "2026-01-32",  # January has 31 days
+            "2026-01-00",  # day 0
+            "2026/10/12",  # wrong separator
+            "12-10-2026",  # wrong format
+            "2026-1-1",    # missing zero padding
+            "",
+            "   ",
+        ]
+        for d in invalid_dates:
+            with self.assertRaises(GlVM.UserError) as ctx:
+                _validate_deadline_date(d)
+            self.assertIn("deadline_hint must be YYYY-MM-DD", str(ctx.exception))
 
     def test_url_validator_accepts_valid_domains(self):
         valid_urls = [

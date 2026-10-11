@@ -47,7 +47,7 @@ class TestLayer3Consensus(unittest.TestCase):
 
             # Register
             gl.nondet.prompt_handler = lambda p: {"subject": "apollo 11", "action": "land on the moon"}
-            cid = self.ledger.register_commitment("Apollo 11 will land on the moon", "none")
+            cid = self.ledger.register_commitment("Apollo 11 will land on the moon", "1969-07-20")
 
             self.ledger.submit_resolution(cid, url)
 
@@ -85,7 +85,7 @@ class TestLayer3Consensus(unittest.TestCase):
 
             # Register
             gl.nondet.prompt_handler = lambda p: {"subject": "apollo 11", "action": "land on the moon"}
-            cid = self.ledger.register_commitment("Apollo 11 will land on the moon", "none")
+            cid = self.ledger.register_commitment("Apollo 11 will land on the moon", "1969-07-20")
 
             with self.assertRaises(Exception) as ctx:
                 self.ledger.submit_resolution(cid, url)
