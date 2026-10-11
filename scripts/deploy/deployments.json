@@ -1,0 +1,15 @@
+{
+  "network": "GenLayer Studionet",
+  "chainId": 61999,
+  "rpc": "https://studio.genlayer.com/api",
+  "explorerBase": "https://explorer-studio.genlayer.com",
+  "contractAddress": "0x13b20E2DBc4E8C2D30e3E484D78ee90f583882F3",
+  "deployTxHash": "0x50015b28539130d6bebb768639427029725183f3b8b6b8b4490510c68ccfc235",
+  "deployStatus": "ACCEPTED",
+  "consensusResult": "MAJORITY_AGREE",
+  "executionResult": "SUCCESS",
+  "commitHash": "55514ead51dbf3db3ef98d9e26e34360ad4fa368",
+  "sourceFile": "contracts/CommitmentLedger.py",
+  "sourceSha256": "8306c5cb7a8316ff6ef737e728a03263275042bce402b821b4941cd880d84aeb",
+  "explorerUrl": "https://explorer-studio.genlayer.com/address/0x13b20E2DBc4E8C2D30e3E484D78ee90f583882F3"
+}
