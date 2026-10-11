@@ -5,19 +5,60 @@ import sys
 import os
 
 from genlayer import gl, GlVM
+from contracts.CommitmentLedger import _validate_source_url, CommitmentLedger
 
 
 class TestLayer1Pure(unittest.TestCase):
     """
     Layer 1 tests:
+    - URL validator table tests (allowlist, schemes, ports, IP literals, length)
     - Canonical-string formatting and defensive JSON parsing
-    - Grounded-quote check (verbatim in evidence, >= 12 chars)
+    - Grounded-quote check (verbatim in fetched text, >= 12 chars)
     - Paraphrase matching vs NOMATCH distractor logic
     """
 
+    def test_url_validator_accepts_valid_domains(self):
+        valid_urls = [
+            "https://en.wikipedia.org/wiki/Apollo_11",
+            "https://wikipedia.org/wiki/Falcon_9",
+            "https://www.reuters.com/business/finance/article-1",
+            "https://reuters.com/world",
+            "https://apnews.com/article/space-exploration",
+            "https://www.bbc.com/news/science-environment-12345",
+            "https://bbc.com/news",
+            "https://www.nasa.gov/missions/artemis",
+            "https://nasa.gov/press-release",
+            "https://www.noaa.gov/weather",
+            "https://noaa.gov/climate",
+            "https://www.ecb.europa.eu/press/pr/date/2026/html/index.en.html",
+            "https://ecb.europa.eu/stats",
+        ]
+        for url in valid_urls:
+            res = _validate_source_url(url)
+            self.assertEqual(res, url)
+
+    def test_url_validator_rejects_disallowed_and_malformed(self):
+        invalid_cases = [
+            ("http://wikipedia.org/x", "scheme must be https"),
+            ("https://evil-wikipedia.org/x", "domain not in authorized allowlist"),
+            ("https://wikipedia.org.attacker.com/x", "domain not in authorized allowlist"),
+            ("https://user:pass@wikipedia.org/x", "cannot contain userinfo"),
+            ("https://wikipedia.org:8443/x", "port must be 443 or omitted"),
+            ("https://raw.githubusercontent.com/x/y", "domain not in authorized allowlist"),
+            ("https://github.com/x/y", "domain not in authorized allowlist"),
+            ("https://127.0.0.1/x", "cannot be an IP address"),
+            ("https://192.168.1.1/x", "cannot be an IP address"),
+            ("", "empty source_url"),
+            ("   ", "empty source_url"),
+            ("https://en.wikipedia.org/wiki/ Apollo_11", "cannot contain whitespace"),
+            ("https://" + "a" * 301 + ".wikipedia.org/x", "exceeds maximum length of 300 characters"),
+        ]
+        for url, expected_err in invalid_cases:
+            with self.assertRaises(GlVM.UserError) as ctx:
+                _validate_source_url(url)
+            self.assertIn(expected_err, str(ctx.exception))
+
     def test_defensive_json_parsing_dict(self):
-        # Simulated raw dict return
-        from contracts.CommitmentLedger import CommitmentLedger
         ledger = CommitmentLedger()
         d = {"match": True, "outcome": "KEPT", "quote": "audit completed"}
         res = ledger._defensive_json_parse(d)
@@ -26,7 +67,6 @@ class TestLayer1Pure(unittest.TestCase):
         self.assertEqual(res["quote"], "audit completed")
 
     def test_defensive_json_parsing_fenced_markdown(self):
-        from contracts.CommitmentLedger import CommitmentLedger
         ledger = CommitmentLedger()
         raw = "```json\n{\"match\": false, \"outcome\": \"PARTIAL\", \"quote\": \"none\"}\n```"
         res = ledger._defensive_json_parse(raw)
@@ -34,7 +74,6 @@ class TestLayer1Pure(unittest.TestCase):
         self.assertEqual(res["outcome"], "PARTIAL")
 
     def test_defensive_json_parsing_regex_fallback(self):
-        from contracts.CommitmentLedger import CommitmentLedger
         ledger = CommitmentLedger()
         raw = "Here is my response:\n\"match\": true\n\"outcome\": \"BROKEN\"\n\"quote\": \"the deadline passed with zero progress\""
         res = ledger._defensive_json_parse(raw)
@@ -43,54 +82,51 @@ class TestLayer1Pure(unittest.TestCase):
         self.assertEqual(res["quote"], "the deadline passed with zero progress")
 
     def test_grounded_quote_criteria(self):
-        evidence = (
-            "Official announcement: The developer team has verified that the staking contracts "
-            "were successfully deployed and audited ahead of schedule."
+        fetched_text = (
+            "Apollo 11 was the American spaceflight that first landed humans on the Moon. "
+            "Commander Neil Armstrong and lunar module pilot Buzz Aldrin landed the Apollo Lunar Module Eagle "
+            "on July 20, 1969, at 20:17 UTC."
         )
 
-        valid_quote = "staking contracts were successfully deployed"
+        valid_quote = "first landed humans on the Moon"
         self.assertGreaterEqual(len(valid_quote), 12)
-        self.assertIn(valid_quote, evidence)
+        self.assertIn(valid_quote, fetched_text)
 
         # Short quote (< 12 chars)
-        short_quote = "deployed"
+        short_quote = "on the Moon"
         self.assertLess(len(short_quote), 12)
 
-        # Hallucinated quote (not in evidence)
-        hallucinated_quote = "we shipped on time according to plan"
-        self.assertNotIn(hallucinated_quote, evidence)
+        # Hallucinated quote (not in fetched text)
+        hallucinated_quote = "astronauts landed on Mars in 1969"
+        self.assertNotIn(hallucinated_quote, fetched_text)
 
     def test_star_trap_test_paraphrase_vs_distractor(self):
         """
-        Demonstrates the Star Test requirement with REAL distinct evidence strings:
+        Demonstrates the Star Test requirement with REAL distinct texts:
         (a) A genuine paraphrase of the same commitment (different sentence structure,
             synonyms, reordered clauses) addresses the same underlying subject & action.
-        (b) A superficially similar evidence text (same subject or domain, but different
-            action or goal) represents a different commitment and must be rejected as NOMATCH.
+        (b) A superficially similar page (same entity or domain, but different
+            action or event) represents a different commitment and must be rejected as NOMATCH.
         """
-        registered_raw = "Hyper commitments: ship the audited governance staking contract by Q3 2026."
-        registered_subject = "hyper"
-        registered_action = "ship the audited governance staking contract"
+        registered_raw = "NASA will successfully land astronauts on the lunar surface and return them safely."
+        registered_subject = "nasa"
+        registered_action = "land astronauts on the lunar surface"
 
-        # Case A: Real paraphrase evidence (synonyms, active vs passive, clause reordering)
-        paraphrase_evidence = (
-            "Transparency update: Following third-party security audits in late September, "
-            "Hyper successfully deployed their governance staking smart contract onto main production."
+        # Case A: Real paraphrase text from Apollo 11 article
+        paraphrase_page = (
+            "Apollo 11 was the American spaceflight that first landed humans on the Moon. "
+            "Commander Neil Armstrong and lunar module pilot Buzz Aldrin landed the Apollo Lunar Module Eagle."
         )
 
-        # Case B: Superficially similar distractor (same subject 'Hyper', same quarter, but different action: faucet tool)
-        distractor_evidence = (
-            "Ecosystem update: Hyper announced the launch of an automated test faucet and documentation portal "
-            "for developers at the end of September 2026."
+        # Case B: Superficially similar distractor (same subject NASA, but robotic Mars rover landing)
+        distractor_page = (
+            "Perseverance is a car-sized Mars rover designed to explore the crater Jezero on Mars "
+            "as part of NASA's Mars 2020 mission."
         )
 
-        # Validate that the paraphrase contains evidence of the same action
-        self.assertIn("Hyper", paraphrase_evidence)
-        self.assertIn("governance staking smart contract", paraphrase_evidence)
-
-        # Validate that the distractor does NOT contain the registered action
-        self.assertNotIn("governance staking", distractor_evidence)
-        self.assertIn("faucet", distractor_evidence)
+        self.assertIn("landed humans on the Moon", paraphrase_page)
+        self.assertNotIn("Moon", distractor_page)
+        self.assertIn("Mars", distractor_page)
 
 
 if __name__ == "__main__":
