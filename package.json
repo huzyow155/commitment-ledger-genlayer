@@ -1,0 +1,30 @@
+{
+  "name": "commitment-ledger-genlayer",
+  "version": "1.0.0",
+  "description": "CommitmentLedger Intelligent Contract on GenLayer: tracking public commitments with consensus-verified semantic matching against paraphrase-dodging",
+  "main": "index.js",
+  "scripts": {
+    "test": "python -m unittest discover tests",
+    "scan:ascii": "python scripts/scan_ascii.py",
+    "scan:banned": "python scripts/scan_banned_words.py",
+    "scan:secrets": "python scripts/scan_secrets.py",
+    "verify:source": "node scripts/verify_source.js",
+    "deploy:probe": "node scripts/deploy/deploy_probe.js",
+    "deploy:core": "node scripts/deploy/deploy_core.js",
+    "deploy:ledger": "node scripts/deploy/deploy_ledger.js",
+    "run:evidence": "node scripts/deploy/run_live_evidence.js"
+  },
+  "keywords": [
+    "genlayer",
+    "intelligent-contracts",
+    "accountability",
+    "semantic-matching",
+    "commitment-ledger"
+  ],
+  "author": "huzyow155",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "genlayer-js": "^1.1.8"
+  }
+}
