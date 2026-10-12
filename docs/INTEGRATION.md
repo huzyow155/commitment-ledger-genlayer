@@ -87,6 +87,8 @@ Retrieves a serialized JSON representation of a commitment record.
     "commitment_id": "1fe69a47c557",
     "registrant": "0x71B47328E05e68875cBc203a1B4d04fA2A0965B6",
     "raw_text": "The United States Apollo 11 mission will land human astronauts on the lunar surface before 1970.",
+    "subject": "apollo 11 mission",
+    "action": "land human astronauts on the lunar surface before 1970",
     "deadline_hint": "1970-01-01",
     "created_round": 1,
     "status": "RESOLVED",
