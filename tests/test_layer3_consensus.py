@@ -76,6 +76,7 @@ class TestLayer3Consensus(unittest.TestCase):
             self.assertEqual(record["source_url"], url)
         finally:
             gl.eq_principle.strict_eq = original_strict_eq
+            gl.eq_principle.prompt_comparative = original_comp
 
     def test_validators_disagree_on_different_output_fails(self):
         url = "https://en.wikipedia.org/wiki/Apollo_11"

@@ -5,10 +5,10 @@ Standalone Intelligent Contract running on GenLayer studionet that registers pub
 ## Status
 
 - **Network**: GenLayer Studionet (Chain ID `61999`, RPC `https://studio.genlayer.com/api`, explorer `https://explorer-studio.genlayer.com`). Status is Preview.
-- **Contract Address**: [`0xdD0d120B50ED65400E8b6a060bB15103B42544E8`](https://explorer-studio.genlayer.com/address/0xdD0d120B50ED65400E8b6a060bB15103B42544E8)
-- **Deploy Transaction Hash**: [`0x9ddb3a96c40d222c8e4ac1b781029a3b6c33937796aa1348a060f4ea9ba14467`](https://explorer-studio.genlayer.com/tx/0x9ddb3a96c40d222c8e4ac1b781029a3b6c33937796aa1348a060f4ea9ba14467)
-- **Source SHA-256**: `e14342dac8a0bdb983d4796557a59d3ae0e47e0715b9290d46cf3986cae1ac9c`
-- **Schema Version**: `3.0.0`
+- **Contract Address**: [`0xBaC90bbD20C3F9Ad873B602eC3684EF3145597DB`](https://explorer-studio.genlayer.com/address/0xBaC90bbD20C3F9Ad873B602eC3684EF3145597DB)
+- **Deploy Transaction Hash**: [`0x6654b4245ee74f4f1339ef13cdff1cf9654cb83714ed9e9810b81ba313f868d6`](https://explorer-studio.genlayer.com/tx/0x6654b4245ee74f4f1339ef13cdff1cf9654cb83714ed9e9810b81ba313f868d6)
+- **Source SHA-256**: `9380175f322387696259a522483239be209d58b8e21fd4928cadf4ab46702e0e`
+- **Schema Version**: `3.1.0`
 - **SDK**: `genlayer-js` v1.1.8 (`chains.studionet`)
 
 ## What It Does
@@ -19,7 +19,7 @@ Standalone Intelligent Contract running on GenLayer studionet that registers pub
 2. **Claim Kind and Identity Attribution**: Callers must declare whether the commitment is `SELF_DECLARED` or a `THIRD_PARTY_REPORT`. The contract explicitly flags `identity_verified: false` to remind downstream systems that on-chain accounts are pseudonymous and off-chain identities are not verified by the ledger.
 3. **Element-Based Adjudication of Full Statement**: Rather than evaluating isolated summary phrases, validators decompose the full raw statement into atomic elements (`ACTION`, `CONDITION`, `DEADLINE`). Each element is individually verified against retrieved evidence. Under the conjunction rule, a commitment is marked `KEPT` if and only if every element is `SATISFIED`. If any element is `NOT_SATISFIED`, the outcome is `BROKEN`. If key elements cannot be confirmed from the source, the transaction reverts as inconclusive, leaving the commitment `OPEN`.
 4. **Deterministic Window Selection & Evidence Fingerprints**: When inspecting allowlisted public sources (`wikipedia.org`, `reuters.com`, `apnews.com`, `bbc.com`, `nasa.gov`, `noaa.gov`, `ecb.europa.eu`), validators inspect up to 12,000 characters using deterministic keyword window selection. Each decision records a SHA-256 fingerprint of the inspected text to ensure evidence integrity.
-5. **Bounded Challenge & Reconsideration State Machine**: Initial resolution places the commitment in `PROVISIONAL` status with a bounded challenge window (120 seconds on Studionet). During this period, any party may challenge the decision with a structured reason code (`UNSUPPORTED_CLASSIFICATION`, `UNADDRESSED_ELEMENT`, `SOURCE_MISMATCH`, `SOURCE_MISATTRIBUTION`). A challenge triggers an independent re-review under strict grounding rules. If the challenge exposes ungrounded claims, the decision is withdrawn and the commitment reverts to `OPEN`. If unchallenged before the window expires, `finalize_resolution` locks the decision permanently into "FINALIZED" status.
+5. **Bounded Challenge & Reconsideration State Machine**: Initial resolution places the commitment in `PROVISIONAL` status with a bounded challenge window (600 seconds on Studionet). During this period, any party may challenge the decision with a structured reason code (`UNSUPPORTED_CLASSIFICATION`, `CONFLICTING_EVIDENCE`). A challenge triggers an independent re-review under strict grounding rules. If the challenge exposes ungrounded claims, the decision is withdrawn and the commitment reverts to `OPEN`. If unchallenged before the window expires, `finalize_resolution` locks the decision permanently into "FINALIZED" status.
 
 ## Quick Start
 
@@ -40,13 +40,13 @@ import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 
 const client = createClient({ chain: studionet, endpoint: "https://studio.genlayer.com/api" });
-const CONTRACT_ADDRESS = "0xdD0d120B50ED65400E8b6a060bB15103B42544E8";
+const CONTRACT_ADDRESS = "0xBaC90bbD20C3F9Ad873B602eC3684EF3145597DB";
 
 // 1. Read commitment
 const recordJson = await client.readContract({
   address: CONTRACT_ADDRESS,
   functionName: "get_commitment",
-  args: ["3d2cc5901dad"],
+  args: ["15c567e44858"],
 });
 console.log(JSON.parse(recordJson));
 
@@ -54,7 +54,7 @@ console.log(JSON.parse(recordJson));
 const historyJson = await client.readContract({
   address: CONTRACT_ADDRESS,
   functionName: "get_decision_history",
-  args: ["7a681e3ba0a4"],
+  args: ["b90ed8cb5cf2"],
 });
 console.log(JSON.parse(historyJson));
 ```
@@ -158,6 +158,7 @@ The following contracts were deployed during development and have been supersede
 
 | Address | Deploy Transaction Hash | Superseded Reason |
 | :--- | :--- | :--- |
+| `0xdD0d120B50ED65400E8b6a060bB15103B42544E8` | [`0x9ddb3a96c40d222c8e4ac1b781029a3b6c33937796aa1348a060f4ea9ba14467`](https://explorer-studio.genlayer.com/tx/0x9ddb3a96c40d222c8e4ac1b781029a3b6c33937796aa1348a060f4ea9ba14467) | Superseded by v3.1.0: fixed outcome mapping truth table, dynamic current_decision_index, presented segments fingerprinting, robust HTML stripper, strict budget counting, UTC time derivation, strict JSON schema validation, and storage init ordering. |
 | `0x3155c7c80f4334968d61E1b79f74EB864CF7cb08` | [`0x1aff7096cb2283f0e60ea74f4249d5d319f650177d9bee7a8ae798b7cf4c970a`](https://explorer-studio.genlayer.com/tx/0x1aff7096cb2283f0e60ea74f4249d5d319f650177d9bee7a8ae798b7cf4c970a) | Superseded by v3.0.0: answered steward review with temporal authenticity, element-based adjudication of full original statement, claim kind/identity unverified, bounded challenge & reconsideration state machine, and sha256 evidence fingerprints. |
 | `0x0A4Dc27c06520EA1EbcAEAFBF94f90b2AbDc6aa1` | [`0x9b738652bceac390143a01f7dcf7ca24b7a92714430d950c34f9ae2936de4f52`](https://explorer-studio.genlayer.com/tx/0x9b738652bceac390143a01f7dcf7ca24b7a92714430d950c34f9ae2936de4f52) | Superseded by v2.2.0: could write PARTIAL when model returned no valid outcome. |
 | `0x8a5269aa724E77D799b3F0dbbaeee7683157f52d` | [`0xc8461e53602c7cc610eab8d99bb8f277b388debb1366736529f90439ba8e4a6b`](https://explorer-studio.genlayer.com/tx/0xc8461e53602c7cc610eab8d99bb8f277b388debb1366736529f90439ba8e4a6b) | Superseded by v2.1.0: removed ungrounded fallback and enforced mandatory calendar date deadlines. |

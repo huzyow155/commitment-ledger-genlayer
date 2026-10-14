@@ -9,7 +9,7 @@ function render() {
   const contractAddress = liveEvidence.contractAddress;
   const deployTxHash = liveEvidence.deployTxHash;
 
-  let md = `# On-Chain Evidence: CommitmentLedger v3.0.0\n\n`;
+  let md = `# On-Chain Evidence: CommitmentLedger v3.1.0\n\n`;
   md += `This document records the exact, verified on-chain evidence transactions executed on GenLayer Studionet (Preview) for contract \`${contractAddress}\`.\n\n`;
   md += `- **Active Contract Address**: [\`${contractAddress}\`](https://explorer-studio.genlayer.com/address/${contractAddress})\n`;
   md += `- **Deploy Transaction Hash**: [\`${deployTxHash}\`](https://explorer-studio.genlayer.com/tx/${deployTxHash})\n`;
@@ -29,7 +29,7 @@ function render() {
     md += `- **Receipt Status**: \`${caseP1.statusName}\`\n`;
     md += `- **Leader Execution**: \`${caseP1.leaderExecutionResult}\`\n`;
     md += `- **Record Status**: \`${caseP1.finalRecord?.status}\`\n`;
-    md += `- **Temporal Classification**: \`${caseP1.finalRecord?.temporal_classification}\`\n`;
+    md += `- **Registration Class**: \`${caseP1.finalRecord?.registration_class || 'PROSPECTIVE'}\`\n`;
     md += `- **Record Class**: \`${caseP1.finalRecord?.record_class}\`\n`;
     md += `- **Claim Kind**: \`${caseP1.finalRecord?.claim_kind}\`\n\n`;
     md += `\`\`\`json\n${JSON.stringify(caseP1.finalRecord, null, 2)}\n\`\`\`\n\n`;
@@ -40,6 +40,20 @@ function render() {
   const cases = liveEvidence.cases || {};
   for (const [key, data] of Object.entries(cases)) {
     if (key === 'caseP1') continue;
+    const decisions = data.finalRecord?.decisions || [];
+    const activeIdx = (typeof data.finalRecord?.current_decision_index === 'number' && data.finalRecord.current_decision_index >= 0)
+      ? data.finalRecord.current_decision_index
+      : (decisions.length > 0 ? decisions.length - 1 : -1);
+    const activeDec = activeIdx >= 0 ? decisions[activeIdx] : null;
+
+    const evSha = activeDec?.evidence_sha256 || 'N/A';
+    const inspSha = activeDec?.inspected_text_sha256 || 'N/A';
+    const cov = activeDec?.coverage || 'N/A';
+    const charsInsp = activeDec?.source_chars_inspected || 0;
+    const charsTot = activeDec?.source_chars_total || 0;
+    const presentedCount = activeDec?.presented_segments_count ?? (activeDec?.presented_segment_ids?.length || 0);
+    const budgetUsed = activeDec?.budget_chars_used || charsInsp;
+
     md += `### ${data.title}\n\n`;
     md += `- **Commitment ID**: \`${data.commitmentId}\`\n`;
     md += `- **Raw Text**: "${data.rawText}"\n`;
@@ -49,16 +63,27 @@ function render() {
     md += `- **Resolve Transaction Hash**: [\`${data.resolveTx}\`](https://explorer-studio.genlayer.com/tx/${data.resolveTx})\n`;
     md += `- **Receipt Status Name**: \`${data.statusName}\`\n`;
     md += `- **Leader Execution Result**: \`${data.leaderExecutionResult}\`\n`;
-    md += `- **Recorded Outcome**: \`${data.finalRecord?.outcome}\`\n`;
-    md += `- **Evidence Preimage SHA-256**: \`${data.finalRecord?.evidence_sha256 || 'None'}\`\n`;
-    md += `- **Inspected Text SHA-256**: \`${data.finalRecord?.inspected_text_sha256 || 'None'}\`\n`;
-    md += `- **Window Coverage**: \`${data.finalRecord?.coverage || 'COMPLETE'}\` (${data.finalRecord?.source_chars_inspected || 0} / ${data.finalRecord?.source_chars_total || 0} chars inspected)\n\n`;
+    md += `- **Recorded Outcome**: \`${data.finalRecord?.outcome || 'NONE (Reverted/Open)'}\`\n`;
+    md += `- **Evidence Preimage SHA-256**: \`${evSha}\`\n`;
+    md += `- **Inspected Text SHA-256**: \`${inspSha}\`\n`;
+    md += `- **Window Coverage**: \`${cov}\` (${charsInsp} / ${charsTot} chars inspected, budget used: ${budgetUsed} chars, segments presented: ${presentedCount})\n\n`;
 
-    if (data.finalRecord?.elements && data.finalRecord.elements.length > 0) {
+    if (data.attempts && data.attempts.length > 0) {
+      md += `#### Resolution Attempts\n\n`;
+      md += `| Attempt | Tx Hash | Status | Consensus | Note |\n`;
+      md += `|---|---|---|---|---|\n`;
+      for (const att of data.attempts) {
+        md += `| ${att.attempt} | [\`${att.hash}\`](https://explorer-studio.genlayer.com/tx/${att.hash}) | \`${att.statusName}\` | \`${att.resultName}\` | ${att.note} |\n`;
+      }
+      md += `\n`;
+    }
+
+    const elements = activeDec?.elements || data.finalRecord?.elements || [];
+    if (elements.length > 0) {
       md += `#### Adjudicated Elements\n\n`;
       md += `| ID | Kind | Label | Status | Cited Segment IDs |\n`;
       md += `|---|---|---|---|---|\n`;
-      for (const el of data.finalRecord.elements) {
+      for (const el of elements) {
         md += `| \`${el.id}\` | \`${el.kind}\` | ${el.label.replace(/\|/g, '-')} | **${el.status}** | \`${JSON.stringify(el.passage_ids || el.cited_segment_ids || [])}\` |\n`;
       }
       md += `\n`;

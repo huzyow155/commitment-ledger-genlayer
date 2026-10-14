@@ -42,7 +42,7 @@ def check_consistency():
         elif outcome == "PARTIAL":
             assert "PARTIAL" in title, f"{case_key} title '{title}' contradicts outcome PARTIAL"
         elif outcome is None:
-            assert "NOMATCH" in title or "OPEN" in title or "Distractor" in title, (
+            assert "NOMATCH" in title or "OPEN" in title or "Distractor" in title or "Disagreed" in title or "Pending" in title, (
                 f"{case_key} title '{title}' contradicts outcome null"
             )
 

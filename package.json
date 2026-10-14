@@ -1,6 +1,6 @@
 {
   "name": "commitment-ledger-genlayer",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "CommitmentLedger Intelligent Contract on GenLayer: tracking public commitments with consensus-verified semantic matching against paraphrase-dodging",
   "type": "commonjs",
   "scripts": {
@@ -15,7 +15,7 @@
     "decode:revert": "node scripts/tools/decode_revert.js",
     "read:commitment": "node scripts/tools/read_commitment.js",
     "render:evidence": "node scripts/tools/render_evidence_md.js",
-    "check": "npm run test && npm run scan:ascii && npm run scan:banned && npm run scan:secrets && npm run check:evidence"
+    "check": "npm run test && npm run scan:ascii && npm run scan:banned && npm run scan:secrets && npm run verify:source && npm run check:evidence"
   },
   "keywords": [
     "genlayer",

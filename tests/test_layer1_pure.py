@@ -207,22 +207,29 @@ class TestLayer1Pure(unittest.TestCase):
         ]
         self.assertEqual(_map_elements_to_outcome(els_action_failed, "COMPLETE"), "BROKEN")
 
-        # 4. Mixed: ACTION SATISFIED, CONDITION1 SATISFIED, CONDITION2 NOT_SATISFIED, DEADLINE SATISFIED -> PARTIAL
+        # 4. Mixed with NOT_SATISFIED: If ANY element is NOT_SATISFIED -> BROKEN
         els_mixed = [
             {"id": "e1", "kind": "ACTION", "label": "launch rocket", "status": "SATISFIED", "passage_ids": [1]},
             {"id": "e2", "kind": "CONDITION", "label": "reach orbit", "status": "SATISFIED", "passage_ids": [2]},
             {"id": "e3", "kind": "CONDITION", "label": "land booster", "status": "NOT_SATISFIED", "passage_ids": [3]},
             {"id": "e4", "kind": "DEADLINE", "label": "before deadline", "status": "SATISFIED", "passage_ids": [4]},
         ]
-        self.assertEqual(_map_elements_to_outcome(els_mixed, "COMPLETE"), "PARTIAL")
+        self.assertEqual(_map_elements_to_outcome(els_mixed, "COMPLETE"), "BROKEN")
 
-        # 5. Any element UNDETERMINED -> raises "insufficient evidence for a conclusive outcome"
+        # 5. Partial: at least one SATISFIED and remainder UNDETERMINED -> PARTIAL
         els_undetermined = [
             {"id": "e1", "kind": "ACTION", "label": "launch rocket", "status": "SATISFIED", "passage_ids": [1]},
             {"id": "e2", "kind": "DEADLINE", "label": "before deadline", "status": "UNDETERMINED", "passage_ids": []},
         ]
+        self.assertEqual(_map_elements_to_outcome(els_undetermined, "COMPLETE"), "PARTIAL")
+
+        # 5b. All UNDETERMINED -> raises "insufficient evidence for a conclusive outcome"
+        els_all_undetermined = [
+            {"id": "e1", "kind": "ACTION", "label": "launch rocket", "status": "UNDETERMINED", "passage_ids": []},
+            {"id": "e2", "kind": "DEADLINE", "label": "before deadline", "status": "UNDETERMINED", "passage_ids": []},
+        ]
         with self.assertRaises(GlVM.UserError) as ctx:
-            _map_elements_to_outcome(els_undetermined, "COMPLETE")
+            _map_elements_to_outcome(els_all_undetermined, "COMPLETE")
         self.assertIn("insufficient evidence for a conclusive outcome", str(ctx.exception))
 
         # 6. Missing ACTION element -> raises UserError("model returned no valid outcome")
@@ -279,10 +286,38 @@ class TestLayer1Pure(unittest.TestCase):
         self.assertEqual(ledger._parse_json_strictly(s), {"match": True, "elements": []})
 
         fenced = '```json\n{"match": false}\n```'
-        self.assertEqual(ledger._parse_json_strictly(fenced), {"match": False})
+        with self.assertRaises(GlVM.UserError):
+            ledger._parse_json_strictly(fenced)
 
         bad = "this is not json at all"
-        self.assertEqual(ledger._parse_json_strictly(bad), {})
+        with self.assertRaises(GlVM.UserError):
+            ledger._parse_json_strictly(bad)
+
+    def test_exhaustive_property_mapping(self):
+        import itertools
+        statuses = ["SATISFIED", "NOT_SATISFIED", "UNDETERMINED"]
+        for n in range(2, 7):
+            for combo in itertools.product(statuses, repeat=n):
+                elements = []
+                for i, st in enumerate(combo):
+                    kind = "ACTION" if i == 0 else ("DEADLINE" if i == n - 1 else "CONDITION")
+                    elements.append({
+                        "id": f"e{i+1}",
+                        "kind": kind,
+                        "label": f"label_{i+1}",
+                        "status": st,
+                        "passage_ids": [1] if st in ("SATISFIED", "NOT_SATISFIED") else []
+                    })
+                # Check expectation
+                if any(st == "NOT_SATISFIED" for st in combo):
+                    self.assertEqual(_map_elements_to_outcome(elements, "COMPLETE"), "BROKEN")
+                elif all(st == "SATISFIED" for st in combo):
+                    self.assertEqual(_map_elements_to_outcome(elements, "COMPLETE"), "KEPT")
+                elif any(st == "SATISFIED" for st in combo):
+                    self.assertEqual(_map_elements_to_outcome(elements, "COMPLETE"), "PARTIAL")
+                else:
+                    with self.assertRaises(GlVM.UserError):
+                        _map_elements_to_outcome(elements, "COMPLETE")
 
 
 if __name__ == "__main__":

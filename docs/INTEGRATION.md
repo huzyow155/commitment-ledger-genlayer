@@ -7,8 +7,8 @@ This document details how client applications and future dApps can integrate wit
 - **Network**: GenLayer Studionet (Preview)
 - **Chain ID**: `61999`
 - **RPC URL**: `https://studio.genlayer.com/api`
-- **Explorer URL**: `https://explorer-studio.genlayer.com/address/0xdD0d120B50ED65400E8b6a060bB15103B42544E8`
-- **Contract Address**: `0xdD0d120B50ED65400E8b6a060bB15103B42544E8`
+- **Explorer URL**: `https://explorer-studio.genlayer.com/address/0xBaC90bbD20C3F9Ad873B602eC3684EF3145597DB`
+- **Contract Address**: `0xBaC90bbD20C3F9Ad873B602eC3684EF3145597DB`
 - **genlayer-js version**: `1.1.8`
 - **Chain Object**: `chains.studionet`
 
@@ -32,7 +32,7 @@ Registers a public commitment with immediate multi-validator canonical extractio
 - **Example Call (`genlayer-js`)**:
   ```javascript
   const txHash = await client.writeContract({
-    address: '0xdD0d120B50ED65400E8b6a060bB15103B42544E8',
+    address: '0xBaC90bbD20C3F9Ad873B602eC3684EF3145597DB',
     functionName: 'register_commitment',
     args: [
       "The United States Apollo 11 mission will land human astronauts on the lunar surface before 1970.",
@@ -58,11 +58,11 @@ Submits an allowlisted public source URL. The contract selects highest-density w
   - Deterministically extracts up to 12,000 chars across highest scoring 3,000-char windows.
   - Splits text into numbered sentences and computes sha256 fingerprints.
   - Decomposes statement into 2 to 6 elements (ACTION, CONDITION, DEADLINE).
-  - Transition status to `PROVISIONAL` with a 24-hour reconsideration challenge window.
+  - Transition status to `PROVISIONAL` with a 600-second (10-minute) reconsideration challenge window.
 - **Example Call (`genlayer-js`)**:
   ```javascript
   const txHash = await client.writeContract({
-    address: '0xdD0d120B50ED65400E8b6a060bB15103B42544E8',
+    address: '0xBaC90bbD20C3F9Ad873B602eC3684EF3145597DB',
     functionName: 'submit_resolution',
     args: [
       "80e4e5b412bf",
@@ -75,7 +75,7 @@ Submits an allowlisted public source URL. The contract selects highest-density w
 
 ### 3. `challenge_resolution(commitment_id: str, reason: str, source_url: str) -> None`
 
-Challenges a provisional decision during the 24-hour window.
+Challenges a provisional decision during the 600-second window.
 
 - **Parameters**:
   - `commitment_id` (`str`): 12-hex character ID in `PROVISIONAL` status.
@@ -86,7 +86,7 @@ Challenges a provisional decision during the 24-hour window.
 
 ### 4. `finalize_resolution(commitment_id: str) -> None`
 
-Finalizes an adjudication once the 24-hour challenge window elapses or the 3-decision limit is exhausted.
+Finalizes an adjudication once the 600-second challenge window elapses or the 3-decision limit is exhausted.
 
 - **Parameters**:
   - `commitment_id` (`str`): 12-hex character ID in `PROVISIONAL` status.
@@ -102,7 +102,7 @@ Retrieves a serialized JSON representation of a commitment record.
 - **Response Shape**:
   ```json
   {
-    "schema_version": "3.0.0",
+    "schema_version": "3.1.0",
     "commitment_id": "80e4e5b412bf",
     "registrant": "0x...",
     "raw_text": "The United States Apollo 11 mission will land human astronauts on the lunar surface before 1970.",

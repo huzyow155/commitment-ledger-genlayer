@@ -3,6 +3,7 @@
 
 import json
 import re
+import html as html_lib
 import hashlib
 import ipaddress
 import urllib.parse
@@ -10,7 +11,7 @@ from datetime import datetime, timezone
 from typing import Any
 from genlayer import *
 
-SCHEMA_VERSION = "3.0.0"
+SCHEMA_VERSION = "3.1.0"
 MAX_RAW_TEXT_LEN = 400
 MAX_URL_LEN = 300
 MIN_QUOTE_LEN = 12
@@ -46,15 +47,40 @@ STOP_WORDS = {
 }
 
 
-def _get_current_timestamp() -> tuple[int, str]:
-    """Retrieve deterministic datetime from GenVM message_raw as (utc_seconds_int, iso_str)."""
+def _parse_iso8601_utc(dt_str: str) -> tuple[int, str, str]:
+    """
+    Parse ISO-8601 datetime with support for UTC 'Z', fractional seconds,
+    and timezone offsets (+07:00, -05:00).
+    Normalizes to UTC datetime.
+    Returns: (timestamp_int, utc_iso_str, utc_date_str)
+    """
+    if not isinstance(dt_str, str):
+        raise gl.vm.UserError("datetime must be string")
+    clean_dt = dt_str.strip()
+    if not clean_dt:
+        raise gl.vm.UserError("empty datetime")
+
+    try:
+        iso_clean = clean_dt[:-1] + "+00:00" if clean_dt.endswith("Z") else clean_dt
+        dt = datetime.fromisoformat(iso_clean)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        ts_int = int(dt.timestamp())
+        utc_iso = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        utc_date = dt.strftime("%Y-%m-%d")
+        return (ts_int, utc_iso, utc_date)
+    except Exception:
+        raise gl.vm.UserError("invalid ISO-8601 datetime format")
+
+
+def _get_current_timestamp() -> tuple[int, str, str]:
+    """Retrieve deterministic datetime from GenVM message_raw as (utc_seconds_int, utc_iso_str, utc_date_str)."""
     if hasattr(gl, "message_raw") and isinstance(gl.message_raw, dict):
         raw_dt = gl.message_raw.get("datetime")
         if raw_dt:
-            dt_str = str(raw_dt).strip()
-            if len(dt_str) >= 19:
-                dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-                return (int(dt.timestamp()), dt_str)
+            return _parse_iso8601_utc(str(raw_dt))
     raise gl.vm.UserError("clock unavailable")
 
 
@@ -142,16 +168,42 @@ def _validate_deadline_date(date_str: str) -> str:
 
 
 def _check_deadline_guard(deadline_hint: str) -> None:
-    """Enforce current_date >= deadline_hint using deterministic clock."""
-    current_ts, now_str = _get_current_timestamp()
-    current_date_str = now_str[:10]
-    if current_date_str < deadline_hint:
+    """Enforce current_date >= deadline_hint using deterministic clock derived from parsed UTC datetime."""
+    current_ts, now_str, current_utc_date = _get_current_timestamp()
+    if current_utc_date < deadline_hint:
         raise gl.vm.UserError("cannot resolve before deadline date")
+
+
+def _clean_html(raw_html: str) -> str:
+    """
+    Deterministic HTML normalizer:
+    1. Strips <script>, <style>, <noscript>, <nav>, <header>, <footer> blocks.
+    2. Strips all HTML tags.
+    3. Normalizes typographic quotes, dashes to ASCII.
+    4. Unescapes HTML entities.
+    5. Collapses whitespace.
+    """
+    if not raw_html:
+        return ""
+    s = str(raw_html)
+    s = re.sub(r"(?is)<script[^>]*>.*?</script>", " ", s)
+    s = re.sub(r"(?is)<style[^>]*>.*?</style>", " ", s)
+    s = re.sub(r"(?is)<noscript[^>]*>.*?</noscript>", " ", s)
+    s = re.sub(r"(?is)<nav[^>]*>.*?</nav>", " ", s)
+    s = re.sub(r"(?is)<header[^>]*>.*?</header>", " ", s)
+    s = re.sub(r"(?is)<footer[^>]*>.*?</footer>", " ", s)
+    s = re.sub(r"<[^>]+>", " ", s)
+    s = s.replace("\u2018", "'").replace("\u2019", "'")
+    s = s.replace("\u201c", '"').replace("\u201d", '"')
+    s = s.replace("\u2013", "-").replace("\u2014", "-")
+    s = html_lib.unescape(s)
+    return " ".join(s.split())
 
 
 def _select_windows(full_text: str, raw_statement: str) -> tuple[str, str, int, int, bool]:
     """
     Deterministic window selection based on scored query terms from raw_statement.
+    Strictly accounts for separators so len(inspected_text) <= INSPECTION_BUDGET_CHARS.
     Returns: (inspected_text, coverage, source_chars_total, source_chars_inspected, truncated_at)
     """
     source_chars_total = len(full_text)
@@ -187,19 +239,28 @@ def _select_windows(full_text: str, raw_statement: str) -> tuple[str, str, int, 
 
     windows_by_score = sorted(windows, key=lambda w: (w["score"], -w["idx"]), reverse=True)
 
+    separator = "\n[...]\n"
+    sep_len = len(separator)
+
     selected_windows = []
     accum_chars = 0
     for w in windows_by_score:
-        if accum_chars + len(w["chunk"]) > INSPECTION_BUDGET_CHARS and len(selected_windows) > 0:
-            continue
+        additional = len(w["chunk"]) if len(selected_windows) == 0 else len(w["chunk"]) + sep_len
+        if accum_chars + additional > INSPECTION_BUDGET_CHARS:
+            if len(selected_windows) > 0:
+                continue
+            w["chunk"] = w["chunk"][:INSPECTION_BUDGET_CHARS]
+            additional = len(w["chunk"])
         selected_windows.append(w)
-        accum_chars += len(w["chunk"])
+        accum_chars += additional
         if accum_chars >= INSPECTION_BUDGET_CHARS:
             break
 
     selected_ordered = sorted(selected_windows, key=lambda w: w["start"])
+    inspected_text = separator.join(w["chunk"] for w in selected_ordered)
+    if len(inspected_text) > INSPECTION_BUDGET_CHARS:
+        inspected_text = inspected_text[:INSPECTION_BUDGET_CHARS]
 
-    inspected_text = "\n[...]\n".join(w["chunk"] for w in selected_ordered)
     return (inspected_text, "SELECTED_WINDOWS", source_chars_total, len(inspected_text), truncated_at)
 
 
@@ -237,36 +298,45 @@ def _segment_text(inspected_text: str) -> list[dict]:
     return segments
 
 
-def _map_elements_to_outcome(elements: list[dict], coverage: str) -> str:
+def _map_elements_to_outcome(elements: list[dict], coverage: str = "COMPLETE") -> str:
     """
-    Deterministic mapping from element statuses to outcome per specification:
-    1. Any element UNDETERMINED -> raises UserError("insufficient evidence for a conclusive outcome")
-    2. DEADLINE element NOT_SATISFIED -> BROKEN
-    3. Else if no element is NOT_SATISFIED -> KEPT
-    4. Else if no element is SATISFIED -> BROKEN
-    5. Else (mixed) -> PARTIAL
+    Pure deterministic outcome mapping per spec:
+    1. Must contain at least one ACTION element and exactly one DEADLINE element.
+    2. If any element has status NOT_SATISFIED -> BROKEN
+    3. Else if all elements have status SATISFIED -> KEPT
+    4. Else (at least one SATISFIED and the rest INCONCLUSIVE/NOT_ADDRESSED/UNDETERMINED, no NOT_SATISFIED) -> PARTIAL
+    5. Else (no element SATISFIED, none NOT_SATISFIED) -> revert UserError("insufficient evidence for a conclusive outcome")
     """
-    has_action = any(e["kind"] == "ACTION" for e in elements)
-    deadline_elements = [e for e in elements if e["kind"] == "DEADLINE"]
+    has_action = any(e.get("kind") == "ACTION" for e in elements)
+    deadline_elements = [e for e in elements if e.get("kind") == "DEADLINE"]
 
     if not has_action or len(deadline_elements) != 1:
         raise gl.vm.UserError("model returned no valid outcome")
 
-    if any(e["status"] == "UNDETERMINED" for e in elements):
-        raise gl.vm.UserError("insufficient evidence for a conclusive outcome")
+    normalized_statuses = []
+    for e in elements:
+        st = str(e.get("status", "")).strip().upper()
+        if st in ("NOT_SATISFIED", "BROKEN", "FAILED"):
+            normalized_statuses.append("NOT_SATISFIED")
+        elif st in ("SATISFIED", "KEPT", "PASSED"):
+            normalized_statuses.append("SATISFIED")
+        else:
+            normalized_statuses.append("UNDETERMINED")
 
-    deadline_status = deadline_elements[0]["status"]
-    if deadline_status == "NOT_SATISFIED":
+    # 1. Any element NOT_SATISFIED -> BROKEN
+    if any(st == "NOT_SATISFIED" for st in normalized_statuses):
         return "BROKEN"
 
-    has_not_satisfied = any(e["status"] == "NOT_SATISFIED" for e in elements)
-    has_satisfied_action = any(e["status"] == "SATISFIED" and e["kind"] == "ACTION" for e in elements)
-
-    if not has_satisfied_action:
-        return "BROKEN"
-    if not has_not_satisfied:
+    # 2. Else all elements SATISFIED -> KEPT
+    if all(st == "SATISFIED" for st in normalized_statuses):
         return "KEPT"
-    return "PARTIAL"
+
+    # 3. Else at least one SATISFIED and no NOT_SATISFIED -> PARTIAL
+    if any(st == "SATISFIED" for st in normalized_statuses):
+        return "PARTIAL"
+
+    # 4. Else (none SATISFIED, none NOT_SATISFIED) -> revert
+    raise gl.vm.UserError("insufficient evidence for a conclusive outcome")
 
 
 class CommitmentLedger(gl.Contract):
@@ -328,8 +398,7 @@ class CommitmentLedger(gl.Contract):
         claim_kind: str,
         retrospective_ack: bool,
     ) -> str:
-        self._ensure_meta_init()
-
+        # 1.8: Validate all parameters BEFORE touching storage or calling _ensure_meta_init()
         if not isinstance(raw_text, str):
             raise gl.vm.UserError("empty raw_text")
         cleaned_text = raw_text.strip()
@@ -340,12 +409,16 @@ class CommitmentLedger(gl.Contract):
 
         validated_deadline = _validate_deadline_date(deadline_hint)
 
-        clean_claim_kind = str(claim_kind).strip().upper()
+        if not isinstance(claim_kind, str):
+            raise gl.vm.UserError("claim_kind must be SELF_DECLARED or THIRD_PARTY_REPORT")
+        clean_claim_kind = claim_kind.strip().upper()
         if clean_claim_kind not in ("SELF_DECLARED", "THIRD_PARTY_REPORT"):
             raise gl.vm.UserError("claim_kind must be SELF_DECLARED or THIRD_PARTY_REPORT")
 
-        current_ts, now_str = _get_current_timestamp()
-        reg_date = now_str[:10]
+        if not isinstance(retrospective_ack, bool):
+            raise gl.vm.UserError("retrospective_ack must be boolean")
+
+        current_ts, now_str, reg_date = _get_current_timestamp()
 
         if validated_deadline > reg_date:
             reg_class = "PROSPECTIVE"
@@ -373,16 +446,27 @@ class CommitmentLedger(gl.Contract):
 
             raw = gl.nondet.exec_prompt(prompt, response_format="json")
             parsed = self._parse_json_strictly(raw)
-            subj = str(parsed.get("subject", "")).strip().lower()
-            act = str(parsed.get("action", "")).strip().lower()
+
+            if set(parsed.keys()) != {"subject", "action"}:
+                return "FAIL|MALFORMED"
+
+            subj_raw = parsed.get("subject")
+            act_raw = parsed.get("action")
+            if not isinstance(subj_raw, str) or not isinstance(act_raw, str):
+                return "FAIL|MALFORMED"
+
+            subj = subj_raw.strip().lower()
+            act = act_raw.strip().lower()
 
             if not subj or not act or len(subj) < 3 or len(act) < 3:
+                return "FAIL|MALFORMED"
+            if len(subj) > 30 or len(act) > 80:
                 return "FAIL|MALFORMED"
             if subj == "unknown" or act == "unknown":
                 return "FAIL|MALFORMED"
 
-            clean_subj = subj.replace("|", "/").replace("\n", " ").strip()[:30]
-            clean_act = act.replace("|", "/").replace("\n", " ").strip()[:80]
+            clean_subj = subj.replace("|", "/").replace("\n", " ").strip()
+            clean_act = act.replace("|", "/").replace("\n", " ").strip()
             if not clean_subj or not clean_act or len(clean_subj) < 3 or len(clean_act) < 3:
                 return "FAIL|MALFORMED"
 
@@ -406,6 +490,8 @@ class CommitmentLedger(gl.Contract):
         if extracted_subject == "unknown" or extracted_action == "unknown":
             raise gl.vm.UserError("malformed extraction")
 
+        # Storage initialization only after full validation
+        self._ensure_meta_init()
         current_nonce = int(self.meta.get("nonce", "0")) + 1
         self.meta["nonce"] = str(current_nonce)
 
@@ -457,6 +543,9 @@ class CommitmentLedger(gl.Contract):
         if record.get("status") != "OPEN":
             raise gl.vm.UserError("commitment already resolved")
 
+        if len(record.get("decisions", [])) >= MAX_DECISIONS:
+            raise gl.vm.UserError("decision limit reached")
+
         validated_url = _validate_source_url(source_url)
         _check_deadline_guard(record.get("deadline_hint", ""))
 
@@ -468,14 +557,14 @@ class CommitmentLedger(gl.Contract):
             challenge_reason=None,
         )
 
-        current_ts, now_str = _get_current_timestamp()
+        current_ts, now_str, _ = _get_current_timestamp()
         decision["n"] = len(record["decisions"]) + 1
         decision["resolver"] = gl.message.sender_address.as_hex
         decision["decided_at"] = now_str
         decision["decided_at_ts"] = current_ts
 
         record["decisions"].append(decision)
-        record["current_decision_index"] = 0
+        record["current_decision_index"] = len(record["decisions"]) - 1
         record["status"] = "PROVISIONAL"
         record["challenge_deadline_ts"] = current_ts + CHALLENGE_WINDOW_SECONDS
         record["outcome"] = decision["outcome"]
@@ -502,7 +591,7 @@ class CommitmentLedger(gl.Contract):
         if status != "PROVISIONAL":
             raise gl.vm.UserError("commitment is not in provisional status")
 
-        current_ts, now_str = _get_current_timestamp()
+        current_ts, now_str, _ = _get_current_timestamp()
         challenge_deadline_ts = record.get("challenge_deadline_ts") or 0
         if current_ts >= challenge_deadline_ts:
             raise gl.vm.UserError("challenge window has expired")
@@ -543,6 +632,7 @@ class CommitmentLedger(gl.Contract):
             if new_decision["outcome"] == eff_outcome:
                 new_decision["review_result"] = "UPHELD"
                 record["decisions"].append(new_decision)
+                record["current_decision_index"] = len(record["decisions"]) - 1
                 record["challenge_deadline_ts"] = current_ts + CHALLENGE_WINDOW_SECONDS
             else:
                 new_decision["review_result"] = "DISPUTED"
@@ -582,6 +672,7 @@ class CommitmentLedger(gl.Contract):
                 if new_decision["outcome"] == eff_outcome:
                     new_decision["review_result"] = "UPHELD"
                     record["decisions"].append(new_decision)
+                    record["current_decision_index"] = len(record["decisions"]) - 1
                     record["challenge_deadline_ts"] = current_ts + CHALLENGE_WINDOW_SECONDS
                 else:
                     new_decision["review_result"] = "REVISED"
@@ -607,7 +698,7 @@ class CommitmentLedger(gl.Contract):
         if status != "PROVISIONAL":
             raise gl.vm.UserError("commitment is not in provisional status")
 
-        current_ts, now_str = _get_current_timestamp()
+        current_ts, now_str, _ = _get_current_timestamp()
         challenge_deadline_ts = record.get("challenge_deadline_ts") or 0
         window_elapsed = current_ts >= challenge_deadline_ts
         budget_exhausted = len(record.get("decisions", [])) >= MAX_DECISIONS
@@ -632,44 +723,54 @@ class CommitmentLedger(gl.Contract):
         registered_date = record.get("registered_date", "")
 
         def run_nondet_evaluation() -> str:
+            # 1.4: Prefer web.render (text mode), fall back to web.get
             fetched_text = ""
-            fetch_method = "web.get"
+            fetch_method = "web.render"
             try:
-                resp = gl.nondet.web.get(source_url)
-                if int(resp.status) == 200:
-                    b = resp.body
-                    fetched_text = b.decode("utf-8", errors="replace") if isinstance(b, (bytes, bytearray)) else str(b)
+                render_res = gl.nondet.web.render(source_url, mode="text")
+                fetched_text = str(render_res) if render_res is not None else ""
             except Exception:
                 fetched_text = ""
 
-            if not fetched_text:
-                fetch_method = "web.render"
+            if not fetched_text or not fetched_text.strip():
+                fetch_method = "web.get"
                 try:
-                    render_res = gl.nondet.web.render(source_url, mode="text")
-                    fetched_text = str(render_res) if render_res is not None else ""
+                    resp = gl.nondet.web.get(source_url)
+                    if int(resp.status) == 200:
+                        b = resp.body
+                        fetched_text = b.decode("utf-8", errors="replace") if isinstance(b, (bytes, bytearray)) else str(b)
                 except Exception:
                     fetched_text = ""
 
             if not fetched_text or not fetched_text.strip():
                 raise gl.vm.UserError("source fetch failed")
 
+            # 1.4: Deterministic HTML cleaning and entity decoding
+            cleaned_source = _clean_html(fetched_text)
+            if not cleaned_source or len(cleaned_source) < MIN_QUOTE_LEN:
+                raise gl.vm.UserError("source fetch failed")
+
+            # 1.5: Select windows with exact separator budget accounting
             (
                 inspected_text,
                 coverage,
                 source_chars_total,
                 source_chars_inspected,
                 truncated_at,
-            ) = _select_windows(fetched_text, full_raw_text)
+            ) = _select_windows(cleaned_source, full_raw_text)
 
             segments = _segment_text(inspected_text)
             if not segments:
                 raise gl.vm.UserError("source fetch failed")
 
+            # 1.3: Presented segments match fingerprinted segments exactly
+            presented_segments = segments
+            presented_segment_ids = [s["id"] for s in presented_segments]
+            presented_segments_count = len(presented_segment_ids)
+            budget_chars_used = len(inspected_text)
             inspected_text_sha256 = hashlib.sha256(inspected_text.encode("utf-8")).hexdigest()
 
-            segments_preview_lines = []
-            for s in segments[:25]:
-                segments_preview_lines.append(f"[{s['id']}] {s['text']}")
+            segments_preview_lines = [f"[{s['id']}] {s['text']}" for s in presented_segments]
             numbered_segments_str = "\n".join(segments_preview_lines)
 
             grounding_instruction = (
@@ -697,7 +798,7 @@ class CommitmentLedger(gl.Contract):
                 "3. For each element assign exactly one status ('SATISFIED', 'NOT_SATISFIED', or 'UNDETERMINED') "
                 "and list the earliest / lowest-numbered segment ID (from the [N] numbers above) that proves that status in cited_segment_ids (e.g. [1]).\n"
                 "4. An element CANNOT be marked SATISFIED or NOT_SATISFIED without at least one valid supporting segment ID.\n\n"
-                "Return ONLY valid JSON in this exact structure:\n"
+                "Return ONLY valid JSON in this exact structure without markdown fences:\n"
                 "{\n"
                 "  \"match\": true,\n"
                 "  \"elements\": [\n"
@@ -718,68 +819,96 @@ class CommitmentLedger(gl.Contract):
             raw = gl.nondet.exec_prompt(prompt, response_format="json")
             parsed = self._parse_json_strictly(raw)
 
-            match_val = parsed.get("match", False)
-            if isinstance(match_val, str):
-                match_val = match_val.lower() in ("true", "1", "yes")
+            # 1.7: Strict schema validation: exact keys and exact types
+            if not isinstance(parsed, dict):
+                return "INVALID|NONE|NONE|NONE"
+
+            if set(parsed.keys()) != {"match", "elements"}:
+                return "INVALID|NONE|NONE|NONE"
+
+            match_val = parsed.get("match")
+            if not isinstance(match_val, bool):
+                return "INVALID|NONE|NONE|NONE"
 
             if not match_val:
+                if parsed.get("elements") != []:
+                    return "INVALID|NONE|NONE|NONE"
                 return "NOMATCH|NONE|NONE|NONE"
 
             raw_elements = parsed.get("elements")
-            if not isinstance(raw_elements, list) or len(raw_elements) == 0 or len(raw_elements) > MAX_ELEMENTS:
+            if not isinstance(raw_elements, list) or len(raw_elements) < 2 or len(raw_elements) > MAX_ELEMENTS:
                 return "INVALID|NONE|NONE|NONE"
 
-            seg_dict = {s["id"]: s for s in segments}
+            seg_dict = {s["id"]: s for s in presented_segments}
 
             validated_elements = []
             all_cited_seg_ids = set()
             action_count = 0
             deadline_count = 0
+            seen_element_ids = set()
+
+            allowed_element_keys = {"id", "kind", "label", "status", "cited_segment_ids"}
 
             for el in raw_elements:
                 if not isinstance(el, dict):
                     return "INVALID|NONE|NONE|NONE"
 
-                el_id = str(el.get("id", "")).strip()[:16]
-                el_kind = str(el.get("kind", "")).strip().upper()
-                el_label = str(el.get("label", "")).strip()[:MAX_ELEMENT_LABEL_CHARS]
-                el_status = str(el.get("status", "")).strip().upper()
-
-                if el_kind not in ("ACTION", "CONDITION", "DEADLINE"):
-                    return "INVALID|NONE|NONE|NONE"
-                if el_status not in ("SATISFIED", "NOT_SATISFIED", "UNDETERMINED"):
-                    return "INVALID|NONE|NONE|NONE"
-                if not el_label:
+                if set(el.keys()) != allowed_element_keys:
                     return "INVALID|NONE|NONE|NONE"
 
-                if el_kind == "ACTION":
+                el_id = el.get("id")
+                if not isinstance(el_id, str) or not re.match(r"^e\d+$", el_id.strip()):
+                    return "INVALID|NONE|NONE|NONE"
+                clean_el_id = el_id.strip()
+                if clean_el_id in seen_element_ids:
+                    return "INVALID|NONE|NONE|NONE"
+                seen_element_ids.add(clean_el_id)
+
+                el_kind = el.get("kind")
+                if not isinstance(el_kind, str) or el_kind.strip().upper() not in ("ACTION", "CONDITION", "DEADLINE"):
+                    return "INVALID|NONE|NONE|NONE"
+                clean_kind = el_kind.strip().upper()
+
+                el_label = el.get("label")
+                if not isinstance(el_label, str) or not el_label.strip() or len(el_label.strip()) > MAX_ELEMENT_LABEL_CHARS:
+                    return "INVALID|NONE|NONE|NONE"
+                clean_label = el_label.strip()
+
+                el_status = el.get("status")
+                if not isinstance(el_status, str) or el_status.strip().upper() not in ("SATISFIED", "NOT_SATISFIED", "UNDETERMINED"):
+                    return "INVALID|NONE|NONE|NONE"
+                clean_status = el_status.strip().upper()
+
+                if clean_kind == "ACTION":
                     action_count += 1
-                elif el_kind == "DEADLINE":
+                elif clean_kind == "DEADLINE":
                     deadline_count += 1
 
-                raw_cited_ids = el.get("cited_segment_ids", [])
-                valid_cited_ids = []
-                if isinstance(raw_cited_ids, list):
-                    for cid in raw_cited_ids:
-                        try:
-                            cid_int = int(cid)
-                            if cid_int in seg_dict:
-                                valid_cited_ids.append(cid_int)
-                        except Exception:
-                            pass
+                raw_cited_ids = el.get("cited_segment_ids")
+                if not isinstance(raw_cited_ids, list):
+                    return "INVALID|NONE|NONE|NONE"
 
-                # Grounding enforcement: SATISFIED / NOT_SATISFIED must have at least one valid cited segment
-                if el_status in ("SATISFIED", "NOT_SATISFIED") and not valid_cited_ids:
-                    el_status = "UNDETERMINED"
+                valid_cited_ids = []
+                for cid in raw_cited_ids:
+                    if not isinstance(cid, int) or isinstance(cid, bool):
+                        return "INVALID|NONE|NONE|NONE"
+                    # 1.3: Cites must be in presented segments set
+                    if cid not in seg_dict:
+                        return "INVALID|NONE|NONE|NONE"
+                    valid_cited_ids.append(cid)
+
+                # Grounding enforcement: SATISFIED / NOT_SATISFIED must cite at least one segment
+                if clean_status in ("SATISFIED", "NOT_SATISFIED") and not valid_cited_ids:
+                    clean_status = "UNDETERMINED"
 
                 for cid_int in valid_cited_ids:
                     all_cited_seg_ids.add(cid_int)
 
                 validated_elements.append({
-                    "id": el_id or f"e{len(validated_elements)+1}",
-                    "kind": el_kind,
-                    "label": el_label,
-                    "status": el_status,
+                    "id": clean_el_id,
+                    "kind": clean_kind,
+                    "label": clean_label,
+                    "status": clean_status,
                     "passage_ids": valid_cited_ids,
                 })
 
@@ -788,9 +917,21 @@ class CommitmentLedger(gl.Contract):
 
             # Strict challenge rule: if strict_grounding_required and any element is UNDETERMINED -> WITHDRAWN
             if strict_grounding_required and any(e["status"] == "UNDETERMINED" for e in validated_elements):
-                return f"WITHDRAWN|NONE|NONE|{json.dumps(validated_elements)}|{inspected_text_sha256}|{coverage}|{source_chars_total}|{source_chars_inspected}|{fetch_method}"
+                payload_withdrawn = {
+                    "elements": validated_elements,
+                    "inspected_text_sha256": inspected_text_sha256,
+                    "source_chars_total": source_chars_total,
+                    "source_chars_inspected": source_chars_inspected,
+                    "coverage": coverage,
+                    "fetch_method": fetch_method,
+                    "presented_segment_ids": presented_segment_ids,
+                    "presented_segments_count": presented_segments_count,
+                    "truncated_at": truncated_at,
+                    "budget_chars_used": budget_chars_used,
+                }
+                return f"WITHDRAWN|NONE|NONE|{json.dumps(payload_withdrawn)}"
 
-            # Outcome mapping
+            # 1.1: Outcome mapping
             try:
                 outcome = _map_elements_to_outcome(validated_elements, coverage)
             except gl.vm.UserError as ue:
@@ -798,7 +939,7 @@ class CommitmentLedger(gl.Contract):
                     return "INCONCLUSIVE|NONE|NONE|NONE"
                 return "INVALID|NONE|NONE|NONE"
 
-            if not all_cited_seg_ids:
+            if not all_cited_seg_ids and outcome in ("KEPT", "BROKEN", "PARTIAL"):
                 return "UNGROUNDED|NONE|NONE|NONE"
 
             ordered_cited_passages = [seg_dict[sid] for sid in sorted(all_cited_seg_ids)]
@@ -820,13 +961,18 @@ class CommitmentLedger(gl.Contract):
                 "source_chars_inspected": source_chars_inspected,
                 "coverage": coverage,
                 "fetch_method": fetch_method,
+                "presented_segment_ids": presented_segment_ids,
+                "presented_segments_count": presented_segments_count,
+                "truncated_at": truncated_at,
+                "budget_chars_used": budget_chars_used,
             }
 
             return f"DECISION|{outcome}|{evidence_sha256}|{canon_token}|{json.dumps(payload)}"
 
+        # 1.9: Narrow comparative principle strictly to final outcome and matching evidence fingerprint
         consensus_res = gl.eq_principle.prompt_comparative(
             run_nondet_evaluation,
-            "Both adjudications agree on the same overall outcome (KEPT, BROKEN, PARTIAL, or WITHDRAWN) and match classification for the commitment."
+            "Both adjudications agree on the same overall outcome (KEPT, BROKEN, PARTIAL, or WITHDRAWN) and matching evidence fingerprint for the commitment."
         )
 
         if consensus_res.startswith("NOMATCH"):
@@ -839,14 +985,8 @@ class CommitmentLedger(gl.Contract):
             raise gl.vm.UserError("insufficient evidence for a conclusive outcome")
 
         if consensus_res.startswith("WITHDRAWN"):
-            parts = consensus_res.split("|")
-            elements_data = json.loads(parts[3]) if len(parts) > 3 else []
-            insp_sha = parts[4] if len(parts) > 4 else ""
-            cov = parts[5] if len(parts) > 5 else "COMPLETE"
-            tot = int(parts[6]) if len(parts) > 6 else 0
-            insp = int(parts[7]) if len(parts) > 7 else 0
-            f_meth = parts[8] if len(parts) > 8 else "web.render"
-
+            parts = consensus_res.split("|", 3)
+            payload_w = json.loads(parts[3]) if len(parts) > 3 else {}
             return {
                 "n": 0,
                 "kind": kind,
@@ -856,14 +996,18 @@ class CommitmentLedger(gl.Contract):
                 "decided_at_ts": 0,
                 "source_url": source_url,
                 "outcome": None,
-                "elements": elements_data,
+                "elements": payload_w.get("elements", []),
                 "passages": [],
                 "evidence_sha256": "",
-                "inspected_text_sha256": insp_sha,
-                "source_chars_total": tot,
-                "source_chars_inspected": insp,
-                "coverage": cov,
-                "fetch_method": f_meth,
+                "inspected_text_sha256": payload_w.get("inspected_text_sha256", ""),
+                "source_chars_total": payload_w.get("source_chars_total", 0),
+                "source_chars_inspected": payload_w.get("source_chars_inspected", 0),
+                "coverage": payload_w.get("coverage", "COMPLETE"),
+                "fetch_method": payload_w.get("fetch_method", "web.render"),
+                "presented_segment_ids": payload_w.get("presented_segment_ids", []),
+                "presented_segments_count": payload_w.get("presented_segments_count", 0),
+                "truncated_at": payload_w.get("truncated_at", False),
+                "budget_chars_used": payload_w.get("budget_chars_used", 0),
                 "review_result": "WITHDRAWN",
             }
 
@@ -895,20 +1039,30 @@ class CommitmentLedger(gl.Contract):
             "source_chars_inspected": payload["source_chars_inspected"],
             "coverage": payload["coverage"],
             "fetch_method": payload["fetch_method"],
+            "presented_segment_ids": payload.get("presented_segment_ids", []),
+            "presented_segments_count": payload.get("presented_segments_count", 0),
+            "truncated_at": payload.get("truncated_at", False),
+            "budget_chars_used": payload.get("budget_chars_used", 0),
             "review_result": None,
         }
 
     def _parse_json_strictly(self, raw: Any) -> dict:
+        """
+        Strict JSON parser:
+        - Accepts dict directly.
+        - Accepts pure JSON string (does NOT strip markdown code fences; markdown fences raise UserError).
+        - Raises UserError on invalid or malformed JSON.
+        """
         if isinstance(raw, dict):
             return raw
         if isinstance(raw, str):
-            text = raw.strip()
-            text = re.sub(r"^```(?:json)?\s*", "", text)
-            text = re.sub(r"\s*```$", "", text)
+            clean = raw.strip()
+            if clean.startswith("```") or clean.endswith("```"):
+                raise gl.vm.UserError("malformed JSON from model")
             try:
-                res = json.loads(text)
-                if isinstance(res, dict):
-                    return res
+                parsed = json.loads(clean)
+                if isinstance(parsed, dict):
+                    return parsed
             except Exception:
-                pass
-        return {}
+                raise gl.vm.UserError("malformed JSON from model")
+        raise gl.vm.UserError("malformed JSON from model")

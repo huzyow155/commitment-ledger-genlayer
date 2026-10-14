@@ -30,7 +30,7 @@ async function main() {
   console.log("Local contract source sha256:", localSha256);
 
   console.log("\n=======================================================");
-  console.log("DEPLOYING COMMITMENTLEDGER v3.0.0 CONTRACT");
+  console.log("DEPLOYING COMMITMENTLEDGER v3.1.0 CONTRACT");
   console.log("=======================================================");
   const t0 = Date.now();
   const deployTxHash = await client.deployContract({
@@ -71,6 +71,11 @@ async function main() {
     sourceSha256: localSha256,
     explorerUrl: `https://explorer-studio.genlayer.com/address/${contractAddress}`,
     supersededDeployments: [
+      {
+        address: "0xdD0d120B50ED65400E8b6a060bB15103B42544E8",
+        deployTxHash: "0x9ddb3a96c40d222c8e4ac1b781029a3b6c33937796aa1348a060f4ea9ba14467",
+        reason: "Superseded by v3.1.0: fixed outcome mapping truth table, dynamic current_decision_index, presented segments fingerprinting, robust HTML stripper, strict budget counting, UTC time derivation, strict JSON schema validation, and storage init ordering."
+      },
       {
         address: "0x3155c7c80f4334968d61E1b79f74EB864CF7cb08",
         deployTxHash: "0x1aff7096cb2283f0e60ea74f4249d5d319f650177d9bee7a8ae798b7cf4c970a",

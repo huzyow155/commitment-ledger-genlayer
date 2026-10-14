@@ -318,7 +318,7 @@ async function main() {
 
   const outcomeD = recordD.outcome || "OPEN";
   liveEvidence.cases.caseD = {
-    title: `Case D (Missed Deadline, ${outcomeD})`,
+    title: `Case D (Inconclusive Revert, ${outcomeD})`,
     commitmentId: cidD,
     rawText: rawTextD,
     deadlineHint: deadlineD,
@@ -328,6 +328,41 @@ async function main() {
     statusName: resD.statusName,
     leaderExecutionResult: resD.leaderExecution,
     finalRecord: recordD,
+  };
+
+  // -------------------------------------------------------------
+  // Case PARTIAL: At least one SATISFIED and one UNDETERMINED
+  // -------------------------------------------------------------
+  console.log("\n=======================================================");
+  console.log("CASE PARTIAL: Mixed Satisfied and Undetermined Elements");
+  console.log("=======================================================");
+  const rawTextPartial = "The Apollo 11 mission will land astronauts on the lunar surface before 1970 and deploy an experimental laser reflector for Australia.";
+  const deadlinePartial = "1970-01-01";
+  const sourcePartial = "https://en.wikipedia.org/wiki/Apollo_11";
+
+  const regPartial = await executeWrite('register_commitment', [rawTextPartial, deadlinePartial, "THIRD_PARTY_REPORT", true]);
+  const cidPartial = await getCid(regPartial);
+  console.log(`Case PARTIAL CID: ${cidPartial}`);
+
+  const resPartial = await executeWrite('submit_resolution', [cidPartial, sourcePartial]);
+  const recordPartial = JSON.parse(await client.readContract({
+    address: contractAddress,
+    functionName: 'get_commitment',
+    args: [cidPartial],
+  }));
+  console.log("Case PARTIAL Final Record:", JSON.stringify(recordPartial, null, 2));
+
+  liveEvidence.cases.casePartial = {
+    title: `Case PARTIAL (${recordPartial.outcome || "PARTIAL"})`,
+    commitmentId: cidPartial,
+    rawText: rawTextPartial,
+    deadlineHint: deadlinePartial,
+    sourceUrl: sourcePartial,
+    registerTx: regPartial.hash,
+    resolveTx: resPartial.hash,
+    statusName: resPartial.statusName,
+    leaderExecutionResult: resPartial.leaderExecution,
+    finalRecord: recordPartial,
   };
 
   // -------------------------------------------------------------

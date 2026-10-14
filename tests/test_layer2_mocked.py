@@ -167,7 +167,9 @@ class TestLayer2Mocked(unittest.TestCase):
             gl.nondet.prompt_handler = lambda p, resp=bad_resp: resp
             with self.assertRaises(GlVM.UserError) as ctx:
                 self.ledger.register_commitment("Alice will deploy oracle.", "2026-10-20", "SELF_DECLARED", False)
-            self.assertIn("malformed extraction", str(ctx.exception))
+            self.assertTrue(
+                "malformed extraction" in str(ctx.exception) or "malformed JSON from model" in str(ctx.exception)
+            )
 
             # Nonce and commitments must be untouched
             self.assertEqual(self.ledger.meta.get("nonce", "0"), meta_before.get("nonce", "0"))
@@ -246,16 +248,40 @@ class TestLayer2Mocked(unittest.TestCase):
         record = json.loads(self.ledger.get_commitment(cid))
         self.assertEqual(record["outcome"], "KEPT")
         self.assertEqual(record["decisions"][0]["coverage"], "SELECTED_WINDOWS")
+        self.assertIn("presented_segment_ids", record["decisions"][0])
+        self.assertTrue(len(record["decisions"][0]["presented_segment_ids"]) > 0)
+        self.assertEqual(
+            record["decisions"][0]["presented_segments_count"],
+            len(record["decisions"][0]["presented_segment_ids"])
+        )
+        self.assertLessEqual(record["decisions"][0]["budget_chars_used"], 12000)
+
+    def test_unpresented_segment_citation_rejected(self):
+        gl.nondet.prompt_handler = lambda p: {"subject": "apollo", "action": "fly"}
+        cid = self.ledger.register_commitment("Apollo will fly.", "2026-01-01", "SELF_DECLARED", True)
+
+        gl.nondet.web.pages[self.default_url] = "Short text passage."
+        # Model cites segment 9999 which was not presented
+        gl.nondet.prompt_handler = lambda p: {
+            "match": True,
+            "elements": [
+                {"id": "e1", "kind": "ACTION", "label": "fly", "status": "SATISFIED", "cited_segment_ids": [9999]},
+                {"id": "e2", "kind": "DEADLINE", "label": "on time", "status": "SATISFIED", "cited_segment_ids": [9999]}
+            ]
+        }
+        with self.assertRaises(GlVM.UserError) as ctx:
+            self.ledger.submit_resolution(cid, self.default_url)
+        self.assertIn("model returned no valid outcome", str(ctx.exception))
 
     # 7. Absence rule & grounding
     def test_absence_rule_downgrades_to_undetermined_and_reverts(self):
         gl.nondet.prompt_handler = lambda p: self._mock_extraction()
         cid = self.ledger.register_commitment("Project X will ship feature.", "2026-01-01", "SELF_DECLARED", True)
 
-        # Element marked NOT_SATISFIED without any cited_segment_ids
+        # All elements ungrounded -> both downgraded to UNDETERMINED -> reverts
         gl.nondet.prompt_handler = lambda p: self._mock_adjudication(elements=[
             {"id": "e1", "kind": "ACTION", "label": "ship feature", "status": "NOT_SATISFIED", "cited_segment_ids": []},
-            {"id": "e2", "kind": "DEADLINE", "label": "before deadline", "status": "SATISFIED", "cited_segment_ids": [1]}
+            {"id": "e2", "kind": "DEADLINE", "label": "before deadline", "status": "SATISFIED", "cited_segment_ids": []}
         ])
 
         with self.assertRaises(GlVM.UserError) as ctx:
@@ -265,6 +291,16 @@ class TestLayer2Mocked(unittest.TestCase):
         record = json.loads(self.ledger.get_commitment(cid))
         self.assertEqual(record["status"], "OPEN")
         self.assertIsNone(record["outcome"])
+
+        # When one is SATISFIED and grounded, but the other is ungrounded -> PARTIAL
+        gl.nondet.prompt_handler = lambda p: self._mock_adjudication(elements=[
+            {"id": "e1", "kind": "ACTION", "label": "ship feature", "status": "NOT_SATISFIED", "cited_segment_ids": []},
+            {"id": "e2", "kind": "DEADLINE", "label": "before deadline", "status": "SATISFIED", "cited_segment_ids": [1]}
+        ])
+        self.ledger.submit_resolution(cid, self.default_url)
+        rec_partial = json.loads(self.ledger.get_commitment(cid))
+        self.assertEqual(rec_partial["status"], "PROVISIONAL")
+        self.assertEqual(rec_partial["outcome"], "PARTIAL")
 
     # 8. Malformed model outputs & NOMATCH
     def test_malformed_model_outputs_and_nomatch(self):
@@ -290,7 +326,9 @@ class TestLayer2Mocked(unittest.TestCase):
                 self.ledger.submit_resolution(cid, self.default_url)
             err_msg = str(ctx.exception)
             self.assertTrue(
-                "model returned no valid outcome" in err_msg or "source does not match this commitment" in err_msg
+                "model returned no valid outcome" in err_msg
+                or "source does not match this commitment" in err_msg
+                or "malformed JSON from model" in err_msg
             )
 
     # 9. Challenge state machine (every transition)
