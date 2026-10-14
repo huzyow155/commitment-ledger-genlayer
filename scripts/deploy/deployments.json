@@ -3,15 +3,20 @@
   "chainId": 61999,
   "rpc": "https://studio.genlayer.com/api",
   "explorerBase": "https://explorer-studio.genlayer.com",
-  "contractAddress": "0x3155c7c80f4334968d61E1b79f74EB864CF7cb08",
-  "deployTxHash": "0x1aff7096cb2283f0e60ea74f4249d5d319f650177d9bee7a8ae798b7cf4c970a",
+  "contractAddress": "0xdD0d120B50ED65400E8b6a060bB15103B42544E8",
+  "deployTxHash": "0x9ddb3a96c40d222c8e4ac1b781029a3b6c33937796aa1348a060f4ea9ba14467",
   "deployStatus": "ACCEPTED",
   "consensusResult": "MAJORITY_AGREE",
   "executionResult": "SUCCESS",
   "sourceFile": "contracts/CommitmentLedger.py",
-  "sourceSha256": "fe63f0cc5a5788e2e3199919ddb5ee067c4c19c17389a8a250764f8e5299016f",
-  "explorerUrl": "https://explorer-studio.genlayer.com/address/0x3155c7c80f4334968d61E1b79f74EB864CF7cb08",
+  "sourceSha256": "e14342dac8a0bdb983d4796557a59d3ae0e47e0715b9290d46cf3986cae1ac9c",
+  "explorerUrl": "https://explorer-studio.genlayer.com/address/0xdD0d120B50ED65400E8b6a060bB15103B42544E8",
   "supersededDeployments": [
+    {
+      "address": "0x3155c7c80f4334968d61E1b79f74EB864CF7cb08",
+      "deployTxHash": "0x1aff7096cb2283f0e60ea74f4249d5d319f650177d9bee7a8ae798b7cf4c970a",
+      "reason": "Superseded by v3.0.0: answered steward review with temporal authenticity, element-based adjudication, and challenge state machine."
+    },
     {
       "address": "0x0A4Dc27c06520EA1EbcAEAFBF94f90b2AbDc6aa1",
       "deployTxHash": "0x9b738652bceac390143a01f7dcf7ca24b7a92714430d950c34f9ae2936de4f52",

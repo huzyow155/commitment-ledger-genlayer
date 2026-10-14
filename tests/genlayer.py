@@ -18,6 +18,14 @@ class GlEqPrinciple:
     def strict_eq(fn):
         return fn()
 
+    @staticmethod
+    def prompt_comparative(fn, principle=""):
+        return fn()
+
+    @staticmethod
+    def prompt_non_comparative(fn, *, task="", criteria=""):
+        return fn()
+
 
 class GlWebResponse:
     def __init__(self, status=200, body=b""):

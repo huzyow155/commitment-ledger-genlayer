@@ -9,55 +9,40 @@ class Probe(gl.Contract):
     probe_results: str
 
     def __init__(self):
-        info = {}
-        # Test sender address accessor
-        sender = gl.message.sender_address
-        info["sender_hex"] = sender.as_hex
-        info["sender_str"] = str(sender)
-
-        # Test hashlib import and hashing
-        import hashlib
-        info["hash_test"] = hashlib.sha256(b"probe_init").hexdigest()[:12]
-
-        # Test user error class availability
-        info["has_user_error"] = hasattr(gl.vm, "UserError")
-
-        self.probe_results = json.dumps(info)
+        self.probe_results = "{}"
 
     @gl.public.view
     def get_results(self) -> str:
         return self.probe_results
 
     @gl.public.write
-    def probe_consensus(self) -> None:
-        def run_nondet() -> str:
-            import hashlib
-            h = hashlib.sha256(b"nondet_test").hexdigest()[:12]
+    def test_apollo_eval(self) -> None:
+        def run_eval() -> str:
+            # Try web.get first for speed
+            text = ""
+            try:
+                resp = gl.nondet.web.get("https://en.wikipedia.org/wiki/Apollo_11")
+                if int(resp.status) == 200:
+                    b = resp.body
+                    text = b.decode("utf-8", errors="replace") if isinstance(b, (bytes, bytearray)) else str(b)
+            except Exception:
+                text = ""
 
-            # Test exec_prompt with json format
+            if not text:
+                text = str(gl.nondet.web.render("https://en.wikipedia.org/wiki/Apollo_11", mode="text"))
+
             prompt = (
-                "You are an evaluator. Return only JSON: {\"status\": \"OK\", \"code\": 100}"
-            )
+                "You are an impartial adjudicator evaluating whether Apollo 11 fulfilled its commitment.\n"
+                "Commitment: Apollo 11 will land human astronauts on the Moon before 1970.\n\n"
+                "Document excerpt:\n%s\n\n"
+                "Return JSON: {\"outcome\": \"KEPT\" or \"BROKEN\"}"
+            ) % text[:3000]
+
             raw = gl.nondet.exec_prompt(prompt, response_format="json")
+            return json.dumps(raw)
 
-            res_type = type(raw).__name__
-            val = ""
-            if isinstance(raw, dict):
-                val = str(raw.get("status", ""))
-            elif isinstance(raw, str):
-                try:
-                    import json as jmod
-                    parsed = jmod.loads(raw)
-                    val = str(parsed.get("status", ""))
-                except Exception:
-                    val = "PARSE_ERR"
-            else:
-                val = str(raw)
-
-            return f"HASH:{h}|TYPE:{res_type}|VAL:{val}"
-
-        result_str = gl.eq_principle.strict_eq(run_nondet)
-
-        current = json.loads(self.probe_results)
-        current["consensus_result"] = result_str
-        self.probe_results = json.dumps(current)
+        res = gl.eq_principle.prompt_comparative(
+            run_eval,
+            "Both answers agree on the same outcome (KEPT or BROKEN) for the Apollo 11 mission commitment."
+        )
+        self.probe_results = res

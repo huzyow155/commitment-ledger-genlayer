@@ -1,85 +1,81 @@
-# Design & Consensus Architecture: CommitmentLedger
+# Design & Consensus Architecture: CommitmentLedger v3.0.0
 
-This document describes the architectural design, trust model, and validator consensus mechanics of `CommitmentLedger`.
+This document describes the architectural design, trust model, and validator consensus mechanics of `CommitmentLedger` v3.0.0.
 
-## 1. Problem: Paraphrase Vulnerability & Caller Circularity
+## 1. Problem: Paraphrase Vulnerability, Temporal Authenticity & Element Integrity
 
-Public commitments (e.g. roadmap targets, steward promises, funding conditions) are commonly restated or dodged using semantic shifts:
-- A speaker states: *"We will release our main audited token contract by Q3."*
-- If evaluated by naive exact string/hash comparison, the check fails when evidence refers to: *"In September, the audited token smart contract was successfully launched."*
-- If evaluated by free-form, unconstrained LLM prompts, non-deterministic phrasing causes validators to diverge, failing consensus (`EQUIVALENCE_PRINCIPLE_VIOLATION`).
-- If evaluated without strict subject/action bounds, superficially-similar actions (e.g. *"In September, the team launched a preview faucet"*) might get falsely credited.
+Public commitments (e.g. roadmap targets, steward promises, funding conditions) encounter three critical governance challenges on smart contract platforms:
 
-### The Problem with Caller-Supplied Evidence
-In naive implementations where callers supply free-form evidence text directly:
-- The "grounded quote" check only proves the quote appears inside text that the caller wrote, which is circular.
-- A registrant could self-certify `KEPT` using self-authored text.
-- A malicious party could front-run an open commitment with self-authored text claiming `BROKEN`.
+1. **Paraphrase Vulnerability**: A commitment phrased as *"Apollo 11 will land human astronauts on the lunar surface before 1970"* will fail exact-string matches against historical reports like *"On July 20, 1969, Neil Armstrong and Buzz Aldrin walked on the Moon"*.
+2. **Temporal Authenticity**: A claim registered after the fact (e.g., claiming in 2026 that Apollo 11 would land in 1969) is not an accountability commitment but retrospective historical analysis. Without explicit labeling, users could register already-completed events to falsify predictive accuracy.
+3. **Element-by-Element Integrity**: Statements often contain compound clauses (e.g., *"Mission X will put all three astronauts on the surface"*). Summarizing statements into simple subject/action phrases risks dropping vital qualifiers (such as "all three", where only two astronauts descended while the command module pilot remained in orbit).
 
-To eliminate this vulnerability, `CommitmentLedger` implements **Source-Based Resolution**: resolutions must provide an allowlisted public source URL that the contract itself fetches through GenLayer's nondeterministic web environment (`gl.nondet.web.render`).
+`CommitmentLedger` v3.0.0 addresses each of these challenges through deterministic on-chain architecture.
 
-## 2. Storage Architecture
+---
 
-`CommitmentLedger` holds **no funds**, requires **no staking/slashing**, and stores purely string-serialized canonical JSON in `TreeMap[str, str]` mapping `commitment_id` to its record:
+## 2. Temporal Classification & Identity Attribution
 
-```json
-{
-  "schema_version": "2.2.0",
-  "commitment_id": "1fe69a47c557",
-  "registrant": "0x71B47328E05e68875cBc203a1B4d04fA2A0965B6",
-  "raw_text": "The United States Apollo 11 mission will land human astronauts on the lunar surface before 1970.",
-  "deadline_hint": "1970-01-01",
-  "subject": "apollo 11 mission",
-  "action": "land human astronauts on the lunar surface before 1970",
-  "created_round": 1,
-  "status": "RESOLVED",
-  "outcome": "KEPT",
-  "source_url": "https://en.wikipedia.org/wiki/Apollo_11",
-  "resolution_quote": "Apollo 11 (July 16–24, 1969) was the American spaceflight that first landed humans on the Moon",
-  "match_confirmed": true,
-  "resolved_at": "2026-10-11T17:51:14.230481Z",
-  "resolver": "0x71B47328E05e68875cBc203a1B4d04fA2A0965B6"
-}
-```
+When a commitment is registered via `register_commitment(raw_text, deadline_hint, claim_kind, retrospective_ack)`:
 
-- In `__init__`, we declare `commitments: TreeMap[str, str]` and `meta: TreeMap[str, str]`. Storage variables are never assigned `TreeMap()` in `__init__`.
-- `commitment_id` is derived deterministically as the first 12 hex characters of:
-  `hashlib.sha256(f"{registrant}|{raw_text}|{nonce}".encode("utf-8")).hexdigest()[:12]`.
+1. **Deterministic Clock Comparison**:
+   The GenVM consensus clock extracts `registered_date = now_str[:10]`.
+   - If `deadline_hint > registered_date`:
+     - `registration_class = "PROSPECTIVE"`
+     - `record_class = "ACCOUNTABILITY"`
+     - Premature resolution is refused on-chain until `current_date >= deadline_hint`.
+   - If `deadline_hint <= registered_date`:
+     - The registration is retrospective.
+     - If `retrospective_ack == False`, reverts with `"deadline is not after registration date; set retrospective_ack to record a historical claim"`.
+     - If acknowledged, sets `registration_class = "RETROSPECTIVE"` and `record_class = "HISTORICAL_ANALYSIS"`.
 
-## 3. Two-Phase Consensus Design
+2. **Unverified Claim Kind**:
+   Smart contract signers cannot be cryptographically linked to real-world identities without an identity oracle. To avoid false credibility:
+   - Callers specify `claim_kind`: `"SELF_DECLARED"` (personal assertion) or `"THIRD_PARTY_REPORT"` (news report / document).
+   - The contract explicitly sets `identity_verified = False` on every record.
 
-### Phase 1: Canonical Extraction at Registration
-`register_commitment(raw_text, deadline_hint)`:
-1. Validates `raw_text` (<= 400 chars, pure ASCII).
-2. Validates `deadline_hint` as a strict calendar date in `YYYY-MM-DD` format with leap year checks (rejects invalid dates like "end of Q2" with `gl.vm.UserError("deadline_hint must be YYYY-MM-DD")`).
-3. Wraps input inside strict `<UNTRUSTED_TEXT>` delimiters with explicit instructions that content is untrusted data, preventing prompt injection attacks.
-4. Multi-validator consensus extracts `{ "subject": "<phrase>", "action": "<phrase>" }`.
-5. Canonical string returned to `strict_eq`: `"EXTRACT|<subject>|<action>"`.
+---
 
-### Phase 2: Source-Based Semantic Match & Outcome Verification
-Anyone can call `submit_resolution(commitment_id, source_url)`:
-1. **URL Validation (Deterministic)**:
-   - Evaluated strictly using `urllib.parse.urlsplit`.
-   - Scheme must be `https`.
-   - No userinfo, default port 443 only.
-   - Domain must belong to the fixed allowlist: `wikipedia.org`, `reuters.com`, `apnews.com`, `bbc.com`, `nasa.gov`, `noaa.gov`, `ecb.europa.eu`.
-   - Rejects IP literals, punycode, whitespace, and URLs > 300 characters.
-2. **Deterministic Deadline Guard**:
-   - Enforces `current_date >= deadline_hint` using deterministic clock `gl.message_raw["datetime"]`.
-   - If earlier, raises `gl.vm.UserError("cannot resolve before deadline date")`. If clock is missing or invalid, raises `gl.vm.UserError("clock unavailable")`.
-3. **Web Retrieval (Nondeterministic)**:
-   - Validators execute `gl.nondet.web.render(source_url, mode="text")` with fallback to `gl.nondet.web.get`.
-   - Truncates retrieved text to a fixed bound (first 6,000 characters).
-   - If text is empty or fetch fails, raises `gl.vm.UserError("source fetch failed")`, keeping the commitment `OPEN`.
-4. **Resolution Check Order (Strict Non-Overlapping Cascade)**:
-   - Evaluates retrieved source in `<UNTRUSTED_SOURCE>` block against registered `{subject, action}`.
-   - **Step 4a (`NOMATCH`)**: If source text describes an unrelated subject or different event, returns `"NOMATCH|NONE|NONE"`. Reverts with `"source does not match this commitment"`, commitment stays `OPEN`.
-   - **Step 4b (`INVALID`)**: If the model matches the topic but fails to produce a valid outcome (`KEPT`, `BROKEN`, or `PARTIAL`), returns `"INVALID|NONE|NONE"`. Reverts with `"model returned no valid outcome"`, commitment stays `OPEN`.
-   - **Step 4c (`UNGROUNDED`)**: If the model asserts an outcome but the quote is under 12 characters or not a verbatim substring of the first 6,000 characters, returns `"UNGROUNDED|NONE|NONE"`. Reverts with `"no grounded quote in source"`, commitment stays `OPEN`.
-   - **Step 4d (`MATCH`)**: If matched, valid outcome, and grounded quote verified, returns `"MATCH|<outcome>|<quote>"`.
-5. **Consensus Equivalence (`gl.eq_principle.strict_eq`)**:
-   - Compares flat canonical string across validators.
-   - If `"NOMATCH"`, raises `gl.vm.UserError("source does not match this commitment")` with zero storage state mutation.
-   - If `"INVALID"`, raises `gl.vm.UserError("model returned no valid outcome")` with zero storage state mutation.
-   - If `"UNGROUNDED"`, raises `gl.vm.UserError("no grounded quote in source")` with zero storage state mutation.
-   - If `"MATCH"`, updates record status to `RESOLVED` with outcome, quote, timestamp, and resolver address. Permanent and irreversible.
+## 3. Element-Based Adjudication & Grounded Evidence
+
+Rather than reducing commitments to simple subject/action phrases, v3.0.0 evaluates the **full original statement** decomposed into 2 to 6 decision-critical elements:
+
+- **ACTION Elements**: At least one element evaluating the core promised action.
+- **CONDITION Elements**: Zero or more elements evaluating scope, quantities, mandatory conditions (e.g., "all three", "without civilian casualties").
+- **DEADLINE Element**: Exactly one element evaluating completion on or before the calendar deadline.
+
+### Element Mapping Matrix
+
+| ACTION | CONDITION | DEADLINE | Outcome |
+| :--- | :--- | :--- | :--- |
+| SATISFIED | All SATISFIED (or none) | SATISFIED | **KEPT** |
+| NOT_SATISFIED | Any | Any | **BROKEN** |
+| Any | Any NOT_SATISFIED | Any | **BROKEN** |
+| Any | Any | NOT_SATISFIED | **BROKEN** |
+| SATISFIED | SATISFIED | UNDETERMINED | **INCONCLUSIVE** (Reverts, remains OPEN) |
+
+### Deterministic Window Selection & Segmentation
+To evaluate large documents without exceeding validator token limits:
+1. `_select_windows()` scores overlapping 3,000-character windows based on keyword density from the statement, selecting up to 12,000 characters.
+2. `_segment_text()` deterministically splits inspected text into numbered sentences (capped at 240 chars each).
+3. Each cited segment generates a SHA-256 fingerprint anchored to the transaction receipt.
+
+---
+
+## 4. Bounded Challenge & Reconsideration State Machine
+
+When `submit_resolution` resolves a commitment:
+1. The commitment enters **`PROVISIONAL`** status with a 24-hour challenge deadline (`challenge_deadline_ts = current_ts + 86400`).
+2. During the 24-hour window, any party may call `challenge_resolution(commitment_id, reason, source_url)`:
+   - **`UNSUPPORTED_CLASSIFICATION`**: Re-evaluates the original source with strict grounding requirements. If any element lacks grounded evidence, the provisional decision is **WITHDRAWN** and the commitment reverts to `OPEN`.
+   - **`CONFLICTING_EVIDENCE`**: Evaluates an alternative allowlisted source URL. If it yields a conflicting outcome, the record marks `outcome = "DISPUTED"`.
+3. **Decision Budget**: A maximum of 3 decisions (`MAX_DECISIONS = 3`) can be recorded. Once 3 decisions are reached or the 24-hour window expires, anyone can call `finalize_resolution(commitment_id)` to permanently seal status as `FINAL`.
+
+---
+
+## 5. Consensus Equivalence Mechanics
+
+GenLayer Studionet validators execute `gl.eq_principle.prompt_comparative` on semantic outcome agreement:
+- Leaders evaluate the source and generate the full structured element JSON and SHA-256 fingerprints.
+- Validators independently evaluate the prompt and verify agreement on the overall outcome (`KEPT`, `BROKEN`, `PARTIAL`, or `WITHDRAWN`) and topic match.
+- This prevents minor token-level variances in free text from triggering false `EQUIVALENCE_PRINCIPLE_VIOLATION` while maintaining decentralized verification.

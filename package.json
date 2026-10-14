@@ -1,6 +1,6 @@
 {
   "name": "commitment-ledger-genlayer",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "description": "CommitmentLedger Intelligent Contract on GenLayer: tracking public commitments with consensus-verified semantic matching against paraphrase-dodging",
   "type": "commonjs",
   "scripts": {
