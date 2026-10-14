@@ -463,6 +463,43 @@ class TestLayer2Mocked(unittest.TestCase):
             self.ledger.submit_resolution(cid, self.default_url)
         self.assertIn("commitment already resolved", str(ctx.exception))
 
+    def test_finalize_resolution_budget_exhausted_immediate(self):
+        """
+        Verify that when decision cap (MAX_DECISIONS = 3) is reached,
+        finalization is permitted immediately even before the challenge window elapses.
+        """
+        gl.nondet.prompt_handler = lambda p: self._mock_extraction()
+        cid = self.ledger.register_commitment("Apollo 11 will land on the Moon.", "1969-07-20", "THIRD_PARTY_REPORT", True)
+
+        gl.nondet.prompt_handler = lambda p: self._mock_adjudication()
+        # Decision 1 (INITIAL)
+        self.ledger.submit_resolution(cid, self.default_url)
+
+        # Decision 2 (UPHELD)
+        url2 = "https://apnews.com/article/apollo-11-landing"
+        gl.nondet.web.pages[url2] = "AP News confirmed Apollo 11 landed humans on the Moon successfully in July 1969."
+        self.ledger.challenge_resolution(cid, "CONFLICTING_EVIDENCE", url2)
+
+        # Decision 3 (DISPUTED) - reaches MAX_DECISIONS
+        url3 = "https://www.reuters.com/article/apollo-dispute"
+        gl.nondet.web.pages[url3] = "Reuters reported mission controllers aborted the lunar descent."
+        gl.nondet.prompt_handler = lambda p: self._mock_adjudication(elements=[
+            {"id": "e1", "kind": "ACTION", "label": "land astronauts on moon", "status": "NOT_SATISFIED", "cited_segment_ids": [1]},
+            {"id": "e2", "kind": "DEADLINE", "label": "before deadline", "status": "NOT_SATISFIED", "cited_segment_ids": [1]}
+        ])
+        self.ledger.challenge_resolution(cid, "CONFLICTING_EVIDENCE", url3)
+
+        rec = json.loads(self.ledger.get_commitment(cid))
+        self.assertEqual(len(rec["decisions"]), 3)
+        # Clock has NOT advanced: current_ts (1791972000) is well before challenge_deadline_ts (1791972600)
+        self.assertLess(1791972000, rec["challenge_deadline_ts"])
+
+        # Finalize succeeds immediately via budget_exhausted branch without waiting for window
+        self.ledger.finalize_resolution(cid)
+        rec_final = json.loads(self.ledger.get_commitment(cid))
+        self.assertEqual(rec_final["status"], "FINAL")
+        self.assertEqual(rec_final["finalized_at"], "2026-10-14T10:00:00Z")
+
     # 11. Immutability of earlier decisions
     def test_decision_history_immutability(self):
         gl.nondet.prompt_handler = lambda p: self._mock_extraction()

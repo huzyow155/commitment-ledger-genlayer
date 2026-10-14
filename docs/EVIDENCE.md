@@ -65,7 +65,7 @@ This document records the exact, verified on-chain evidence transactions execute
 - **Resolve Transaction Hash**: [`0xfa1076448a7b116c04b970c22a35f6a172b9c268d57fe4390b4c623a26914204`](https://explorer-studio.genlayer.com/tx/0xfa1076448a7b116c04b970c22a35f6a172b9c268d57fe4390b4c623a26914204)
 - **Receipt Status Name**: `ACCEPTED`
 - **Leader Execution Result**: `SUCCESS`
-- **Recorded Outcome**: `NONE (Reverted/Open)`
+- **Recorded Outcome**: `UNADJUDICATED (Open/Reverted)`
 - **Evidence Preimage SHA-256**: `N/A`
 - **Inspected Text SHA-256**: `N/A`
 - **Window Coverage**: `N/A` (0 / 0 chars inspected, budget used: 0 chars, segments presented: 0)
@@ -429,7 +429,7 @@ This document records the exact, verified on-chain evidence transactions execute
 - **Resolve Transaction Hash**: [`0x712bc24c671155061fb5bf2bac1062146de13c7503459c16fd2814e4a8225ee2`](https://explorer-studio.genlayer.com/tx/0x712bc24c671155061fb5bf2bac1062146de13c7503459c16fd2814e4a8225ee2)
 - **Receipt Status Name**: `UNDETERMINED`
 - **Leader Execution Result**: `SUCCESS`
-- **Recorded Outcome**: `NONE (Reverted/Open)`
+- **Recorded Outcome**: `UNADJUDICATED (Open/Reverted)`
 - **Evidence Preimage SHA-256**: `N/A`
 - **Inspected Text SHA-256**: `N/A`
 - **Window Coverage**: `N/A` (0 / 0 chars inspected, budget used: 0 chars, segments presented: 0)
@@ -474,7 +474,7 @@ This document records the exact, verified on-chain evidence transactions execute
 - **Resolve Transaction Hash**: [`0x996b51efd76c51f206eff9a5f2862006a4c163763a6c8dc9d3d0c5d0f25812cc`](https://explorer-studio.genlayer.com/tx/0x996b51efd76c51f206eff9a5f2862006a4c163763a6c8dc9d3d0c5d0f25812cc)
 - **Receipt Status Name**: `UNDETERMINED`
 - **Leader Execution Result**: `SUCCESS`
-- **Recorded Outcome**: `NONE (Reverted/Open)`
+- **Recorded Outcome**: `UNADJUDICATED (Open/Reverted)`
 - **Evidence Preimage SHA-256**: `N/A`
 - **Inspected Text SHA-256**: `N/A`
 - **Window Coverage**: `N/A` (0 / 0 chars inspected, budget used: 0 chars, segments presented: 0)
@@ -509,18 +509,65 @@ This document records the exact, verified on-chain evidence transactions execute
 }
 ```
 
-## 3. Challenge State Machine & Decisions History
+## 3. 600-Second Challenge Window Finalization Proof
 
-Verified on-chain challenge progression exercising the bounded reconsideration state machine:
+This test proves that a single provisional resolution (with fewer than 3 decisions) strictly enforces the 600-second challenge window on the GenLayer Studionet consensus clock. Early finalization is rejected with a decoded revert, and finalization succeeds once the consensus clock surpasses the deadline:
+
+- **Commitment ID**: `98e5aceacf75`
+- **Statement**: "The Apollo 11 lunar module landed on the Moon in July 1969."
+- **Deadline**: `1970-01-01`
+- **Source URL**: https://en.wikipedia.org/wiki/Apollo_11
+- **Register Transaction**: [`0xc95736b8b5a6256255d9b178d06d7ba419bd645af44118d8c0f38e5e98db2ca0`](https://explorer-studio.genlayer.com/tx/0xc95736b8b5a6256255d9b178d06d7ba419bd645af44118d8c0f38e5e98db2ca0)
+- **Initial Resolution Transaction**: [`0x03d0945985554655360388e96a8ec48c3aafb094b0b6248fdb7768d32d58a88c`](https://explorer-studio.genlayer.com/tx/0x03d0945985554655360388e96a8ec48c3aafb094b0b6248fdb7768d32d58a88c) (Decided at `2026-10-14T11:11:12Z`, outcome: **KEPT**)
+- **Challenge Deadline Timestamp**: `1791976872` (exact 600s window: `1791976272 + 600`)
+
+### Early Finalize Attempt (Window Still Open - Revert Proof)
+
+- **Attempt Transaction Hash**: [`0x63e292dc46966d58aa7bba49fb28c7737a9e9744f697bebca688d90d3cc7480a`](https://explorer-studio.genlayer.com/tx/0x63e292dc46966d58aa7bba49fb28c7737a9e9744f697bebca688d90d3cc7480a)
+- **Receipt Status Name**: `ACCEPTED`
+- **Decoded Revert Payload**: `"challenge window still open"` (strictly rejected while window active)
+
+### Elapsed-Window Finalize Transaction
+
+- **Finalize Transaction Hash**: [`0x8b616611a308bb57bff06e6a49df4516b65f086b7f1a510c3a46b2088e8bb5ad`](https://explorer-studio.genlayer.com/tx/0x8b616611a308bb57bff06e6a49df4516b65f086b7f1a510c3a46b2088e8bb5ad)
+- **Receipt Status Name**: `ACCEPTED`
+- **Leader Execution**: `SUCCESS`
+- **Finalization Timestamp**: `2026-10-14T11:23:51Z`
+- **Final Record Status**: `FINAL`
+- **Decisions Count**: `1` (single decision window path)
+- **Real Elapsed Consensus Seconds**: `758s` (>= 600s challenge window)
+- **Time from Submission to Transaction "FINALIZED"**: `31.766s` (reached transaction status "FINALIZED": `true`)
+
+## 4. Additional On-Chain Scenario: Case PARTIAL
+
+Empirically verified on GenLayer Studionet with compound statement ("action satisfied + unmentioned condition undetermined"):
+
+- **Commitment ID**: `2b8d6befe470`
+- **Statement**: "Apollo 11 landed astronauts on the Moon in July 1969 and the astronauts ate fresh peaches on the lunar surface."
+- **Register Transaction**: [`0xb553f0ef6365db3a88168f2e8372939ffe57d2385875e3d659265d464c678b46`](https://explorer-studio.genlayer.com/tx/0xb553f0ef6365db3a88168f2e8372939ffe57d2385875e3d659265d464c678b46)
+- **Resolution Transaction**: [`0x912cf28959512c89781e571ebe9289c041768dbe96a83a035bb97d60d721303d`](https://explorer-studio.genlayer.com/tx/0x912cf28959512c89781e571ebe9289c041768dbe96a83a035bb97d60d721303d)
+- **Consensus Agreement Rate**: `60.0%` (3/5 validators agreeing)
+- **Recorded Outcome**: **PARTIAL** (status: `PROVISIONAL`)
+
+| ID | Kind | Element Label | Status |
+|---|---|---|---|
+| `e1` | `ACTION` | Apollo 11 landed astronauts on the Moon | **SATISFIED** |
+| `e2` | `CONDITION` | the landing occurred in July 1969 | **SATISFIED** |
+| `e3` | `ACTION` | the astronauts ate fresh peaches on the lunar surface | **UNDETERMINED** |
+| `e4` | `DEADLINE` | completed on or before 1970-01-01 | **UNDETERMINED** |
+
+## 5. Challenge State Machine (Decision Budget Exhausted Branch)
+
+This multi-decision flow exercises the alternative finalization branch (`budget_exhausted = len(decisions) >= MAX_DECISIONS`). When 3 decisions are recorded, the contract permits immediate finalization without waiting for the challenge window to elapse, because no further challenges are permitted:
 
 - **Commitment ID**: `b90ed8cb5cf2`
 - **Register Tx**: [`0x5a272e9b482a7b5f63b4a83c2ac54f86e308d7f2436a35497e20c8ae9392733d`](https://explorer-studio.genlayer.com/tx/0x5a272e9b482a7b5f63b4a83c2ac54f86e308d7f2436a35497e20c8ae9392733d)
 - **Initial Resolution Tx**: [`0xa7c88a13525b2ca32f0e52172dd8d8ed5ec96a3d50c6dbe4e53c0bd0a4b1a57b`](https://explorer-studio.genlayer.com/tx/0xa7c88a13525b2ca32f0e52172dd8d8ed5ec96a3d50c6dbe4e53c0bd0a4b1a57b)
 - **Challenge 1 Tx (UNSUPPORTED_CLASSIFICATION)**: [`0xbd57c320f56349b9d316e2161b7ca3330801e472078518155c5aef9402eb880a`](https://explorer-studio.genlayer.com/tx/0xbd57c320f56349b9d316e2161b7ca3330801e472078518155c5aef9402eb880a)
 - **Challenge 2 Tx (CONFLICTING_EVIDENCE)**: [`0x2825907ab12db9a694b1a9b2ed52aa5fa3959677c3d8df6ba1f80a74f7e6207f`](https://explorer-studio.genlayer.com/tx/0x2825907ab12db9a694b1a9b2ed52aa5fa3959677c3d8df6ba1f80a74f7e6207f)
-- **Finalize Tx**: [`0x2c250713a3341c65198d8821f04352c50f31d9858942df0a8540a974abf484fe`](https://explorer-studio.genlayer.com/tx/0x2c250713a3341c65198d8821f04352c50f31d9858942df0a8540a974abf484fe)
+- **Finalize Tx (Budget Exhausted)**: [`0x2c250713a3341c65198d8821f04352c50f31d9858942df0a8540a974abf484fe`](https://explorer-studio.genlayer.com/tx/0x2c250713a3341c65198d8821f04352c50f31d9858942df0a8540a974abf484fe)
 - **Final Record Status**: `FINAL`
-- **Total Decisions In History**: `3`
+- **Total Decisions In History**: `3` (reached MAX_DECISIONS = 3)
 
 ### Decisions Timeline
 
@@ -530,7 +577,7 @@ Verified on-chain challenge progression exercising the bounded reconsideration s
 | 2 | `CHALLENGE` | `UNSUPPORTED_CLASSIFICATION` | **KEPT** | https://en.wikipedia.org/wiki/Apollo_11 | `0e8ad66843fc8983...` |
 | 3 | `CHALLENGE` | `CONFLICTING_EVIDENCE` | **KEPT** | https://en.wikipedia.org/wiki/Apollo_program | `6b47f74dfa48d87f...` |
 
-## 4. On-Chain Negative Rejection Tests
+## 6. On-Chain Negative Rejection Tests
 
 Every negative test below was verified on GenLayer Studionet by querying JSON-RPC `eth_getTransactionByHash` and decoding base64 field `result.consensus_data.leader_receipt[0].result`:
 
@@ -598,9 +645,9 @@ Every negative test below was verified on GenLayer Studionet by querying JSON-RP
 - **Leader Execution Result**: `ERROR`
 - **Decoded Revert Payload**: `"challenge window still open"`
 
-## 5. Consensus Measurements & Validator Agreement Rates
+## 7. Consensus Measurements & Validator Agreement Rates
 
-Empirical validator telemetry captured during test execution:
+Across empirical runs on GenLayer Studionet (Preview), successful consensus calls typically achieved 60.0% agreement (3 of 5 active validators agreeing under `gl.eq_principle.prompt_comparative`). Clear, unambiguous factual statements against well-structured Wikipedia articles reliably achieve majority consensus. By contrast, negative assertions or missed-deadline statements occasionally produce split validator evaluations (e.g. 0 of 5 agree, yielding `MAJORITY_DISAGREE` with receipt status `UNDETERMINED`), leaving the commitment securely in its prior state (`OPEN`) without state mutation.
 
 | Operation | Tx Hash | Receipt Status | Consensus Result | Execution | Latency (s) | Agreement Rate |
 |---|---|---|---|---|---|---|
@@ -630,14 +677,14 @@ Empirical validator telemetry captured during test execution:
 | `challenge_resolution` | [`0x2825907ab12db9a694b1a9b2ed52aa5fa3959677c3d8df6ba1f80a74f7e6207f`](https://explorer-studio.genlayer.com/tx/0x2825907ab12db9a694b1a9b2ed52aa5fa3959677c3d8df6ba1f80a74f7e6207f) | `ACCEPTED` | `MAJORITY_AGREE` | `SUCCESS` | 31.35s | **60.0%** (3/5) |
 | `finalize_resolution` | [`0x2c250713a3341c65198d8821f04352c50f31d9858942df0a8540a974abf484fe`](https://explorer-studio.genlayer.com/tx/0x2c250713a3341c65198d8821f04352c50f31d9858942df0a8540a974abf484fe) | `ACCEPTED` | `MAJORITY_AGREE` | `SUCCESS` | 8.43s | **100.0%** (5/5) |
 
-## 6. Features Covered Exclusively in Pure/Mock Unit Tests
+## 8. Unit-Tested Only (Not On-Chain)
 
-The following contract safeguards are rigorously verified via `tests/test_layer1_pure.py` and `tests/test_layer2_mocked.py`, but are intentionally not triggered on-chain to conserve studionet funds and avoid validator spam:
+The following scenarios and edge cases were rigorously verified in the Python unit test suite (`tests/test_layer1_pure.py`, `tests/test_layer2_mocked.py`, `tests/test_step0_regressions.py`), but were not reproducible on-chain or were intentionally reserved for mock environments:
 
-1. **Elements Bounds Enforcement**: Validation rejecting models that output fewer than 2 elements or more than 6 elements (`len(elements) > 6`).
-2. **Strict Regex Calendar Date Parser**: Full date format validation rejecting malformed expressions (e.g. leap year invalid dates, non-numeric months, trailing whitespace).
-3. **Exhaustive Element-to-Outcome Matrix**: All 14 combinatoric branches between ACTION, CONDITION, and DEADLINE satisfaction.
-4. **Strict JSON Parser Resiliency**: Parser rejection of corrupted LLM payloads, non-object JSON roots, markdown fence stripping edge cases, and control character injections.
-5. **Challenge Decision Cap**: Rejection of a 4th challenge when `MAX_DECISIONS = 3` is already reached.
-6. **Deterministic Sentence Segmentation**: Segmentation boundary handling for decimal points, honorific abbreviations (Dr., Gen.), and sentence length capping at 240 characters.
+1. **UNSUPPORTED_CLASSIFICATION Yielding WITHDRAWN**: In our on-chain test (`b90ed8cb5cf2`), re-evaluating the Apollo 11 source under strict grounding re-confirmed the landing passages, yielding `UPHELD`. The `WITHDRAWN` branch (where model grounding fails to find cited text and safely resets status to `OPEN`) is comprehensively verified in `test_challenge_unsupported_classification_flow`.
+2. **CONFLICTING_EVIDENCE Yielding DISPUTED**: In our on-chain challenge (`b90ed8cb5cf2`), the secondary source (Apollo program) confirmed the lunar landing, upholding the outcome. Creating a genuine `DISPUTED` outcome on-chain requires two reputable allowlisted sources with authentic contradicting assertions; this branch is strictly verified in `test_challenge_conflicting_evidence_flow`.
+3. **Retrospective Missed-Deadline Yielding BROKEN**: On-chain attempt (`0689a0a5c7c3`, tx `0x395eb380908774ad4ffd46dd6e7b1e7a27fd162149fa67d2d3e1b47a7a4a8a9d`) resulted in validator disagreement (`MAJORITY_DISAGREE`, 0/5 agree), leaving the commitment `OPEN`. The deterministic outcome mapping for missed deadlines is verified in unit tests.
+4. **Fourth Challenge Attempt Rejection**: Attempting a 4th challenge once `MAX_DECISIONS = 3` is reached reverts with `"challenge limit reached"`. Verified in `test_challenge_limit_reached`.
+5. **Malformed JSON & Missing Attributes**: Synthetic LLM outputs returning missing elements, non-object JSON roots, or invalid schema types revert with `"malformed consensus result"` and do not alter state.
+6. **Storage Nonce Neutrality on Rejected Registration**: Registrations that revert for invalid deadline dates, empty text, or unacknowledged retrospective deadlines touch zero storage and do not increment nonces.
 

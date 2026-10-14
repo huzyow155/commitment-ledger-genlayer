@@ -1,0 +1,81 @@
+{
+  "missed_deadline": {
+    "attempts": [
+      {
+        "attempt": 1,
+        "cid": "0689a0a5c7c3",
+        "statement": "The Apollo 11 mission will land astronauts on the lunar surface before 1968-01-01.",
+        "deadline": "1968-01-01",
+        "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_11",
+        "registerTx": "0x9a7b3ba6d90d155c71c3cd8787d820609c79df7f497195f4fad7bc8803bafa8d",
+        "registerStatus": "ACCEPTED",
+        "resolveTx": "0x395eb380908774ad4ffd46dd6e7b1e7a27fd162149fa67d2d3e1b47a7a4a8a9d",
+        "resolveStatus": "UNDETERMINED",
+        "consensusResult": "MAJORITY_DISAGREE",
+        "leaderExecution": "SUCCESS",
+        "agreeCount": 0,
+        "validatorsCount": 5,
+        "agreeRate": "0.0%",
+        "outcome": null,
+        "recordStatus": "OPEN",
+        "elements": []
+      }
+    ]
+  },
+  "partial": {
+    "attempts": [
+      {
+        "attempt": 1,
+        "cid": "2b8d6befe470",
+        "statement": "Apollo 11 landed astronauts on the Moon in July 1969 and the astronauts ate fresh peaches on the lunar surface.",
+        "deadline": "1970-01-01",
+        "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_11",
+        "registerTx": "0xb553f0ef6365db3a88168f2e8372939ffe57d2385875e3d659265d464c678b46",
+        "registerStatus": "ACCEPTED",
+        "resolveTx": "0x912cf28959512c89781e571ebe9289c041768dbe96a83a035bb97d60d721303d",
+        "resolveStatus": "ACCEPTED",
+        "consensusResult": "MAJORITY_AGREE",
+        "leaderExecution": "SUCCESS",
+        "agreeCount": 3,
+        "validatorsCount": 5,
+        "agreeRate": "60.0%",
+        "outcome": "PARTIAL",
+        "recordStatus": "PROVISIONAL",
+        "elements": [
+          {
+            "id": "e1",
+            "kind": "ACTION",
+            "label": "Apollo 11 landed astronauts on the Moon",
+            "status": "SATISFIED",
+            "passage_ids": [
+              12
+            ]
+          },
+          {
+            "id": "e2",
+            "kind": "CONDITION",
+            "label": "the landing occurred in July 1969",
+            "status": "SATISFIED",
+            "passage_ids": [
+              12
+            ]
+          },
+          {
+            "id": "e3",
+            "kind": "ACTION",
+            "label": "the astronauts ate fresh peaches on the lunar surface",
+            "status": "UNDETERMINED",
+            "passage_ids": []
+          },
+          {
+            "id": "e4",
+            "kind": "DEADLINE",
+            "label": "completed on or before 1970-01-01",
+            "status": "UNDETERMINED",
+            "passage_ids": []
+          }
+        ]
+      }
+    ]
+  }
+}

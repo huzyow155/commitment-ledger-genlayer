@@ -1081,5 +1081,30 @@
       "agreeCount": 5,
       "agreeRate": "100.0%"
     }
-  ]
+  ],
+  "windowPathFinalize": {
+    "commitmentId": "98e5aceacf75",
+    "statement": "The Apollo 11 lunar module landed on the Moon in July 1969.",
+    "deadlineHint": "1970-01-01",
+    "sourceUrl": "https://en.wikipedia.org/wiki/Apollo_11",
+    "registerTx": "0xc95736b8b5a6256255d9b178d06d7ba419bd645af44118d8c0f38e5e98db2ca0",
+    "resolveTx": "0x03d0945985554655360388e96a8ec48c3aafb094b0b6248fdb7768d32d58a88c",
+    "decidedAt": "2026-10-14T11:11:12Z",
+    "decidedAtTs": 1791976272,
+    "challengeDeadlineTs": 1791976872,
+    "earlyFinalizeAttempt": {
+      "txHash": "0x63e292dc46966d58aa7bba49fb28c7737a9e9744f697bebca688d90d3cc7480a",
+      "statusName": "ACCEPTED",
+      "revertPayload": "challenge window still open"
+    },
+    "finalizeTx": "0x8b616611a308bb57bff06e6a49df4516b65f086b7f1a510c3a46b2088e8bb5ad",
+    "finalizeStatusName": "ACCEPTED",
+    "finalizeLeaderExecution": "SUCCESS",
+    "finalizedAt": "2026-10-14T11:23:51Z",
+    "finalStatus": "FINAL",
+    "decisionsCount": 1,
+    "realElapsedSeconds": 758,
+    "finalizedTimingSeconds": 31.766,
+    "reachedFinalizedStatus": true
+  }
 }

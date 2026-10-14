@@ -86,7 +86,7 @@ Challenges a provisional decision during the 600-second window.
 
 ### 4. `finalize_resolution(commitment_id: str) -> None`
 
-Finalizes an adjudication once the 600-second challenge window elapses or the 3-decision limit is exhausted.
+Finalizes an adjudication once the 600-second challenge window elapses or the 3-decision limit is exhausted. Transitions the commitment's on-chain record status from `PROVISIONAL` to `FINAL` (while the transaction receipt reaches "FINALIZED").
 
 - **Parameters**:
   - `commitment_id` (`str`): 12-hex character ID in `PROVISIONAL` status.
