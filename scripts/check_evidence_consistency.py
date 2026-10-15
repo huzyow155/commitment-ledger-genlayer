@@ -2,11 +2,13 @@ import os
 import json
 import re
 import sys
+import glob
 
 def check_consistency():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     deployments_path = os.path.join(root, "scripts", "deploy", "deployments.json")
     live_evidence_path = os.path.join(root, "scripts", "deploy", "live_evidence.json")
+    gap_attempts_path = os.path.join(root, "scripts", "deploy", "gap_attempts.json")
     readme_path = os.path.join(root, "README.md")
     docs_dir = os.path.join(root, "docs")
 
@@ -15,6 +17,11 @@ def check_consistency():
 
     with open(live_evidence_path, "r", encoding="utf-8") as f:
         live_evidence = json.load(f)
+
+    gap_attempts = {}
+    if os.path.exists(gap_attempts_path):
+        with open(gap_attempts_path, "r", encoding="utf-8") as f:
+            gap_attempts = json.load(f)
 
     expected_contract = deployments["contractAddress"]
     actual_contract = live_evidence["contractAddress"]
@@ -66,40 +73,101 @@ def check_consistency():
             f"Missing revertPayload in negativeTests.{neg_key}"
         )
 
-    # Check partialAttempts tx hashes
-    for item in live_evidence.get("partialAttempts", []):
-        for tx_key in ["registerTx", "resolveTx"]:
-            tx_hash = item.get(tx_key)
-            if tx_hash:
-                assert tx_hash.startswith("0x") and len(tx_hash) == 66, (
-                    f"Invalid tx hash in partialAttempts.{tx_key}: '{tx_hash}'"
-                )
+    # Collect active commitment IDs and tx hashes across live_evidence and gap_attempts
+    active_cids = set()
+    active_hashes = set()
 
-    # Check ungroundedAttempts tx hashes
-    for item in live_evidence.get("ungroundedAttempts", []):
-        for tx_key in ["registerTx", "resolveTx"]:
-            tx_hash = item.get(tx_key)
-            if tx_hash:
-                assert tx_hash.startswith("0x") and len(tx_hash) == 66, (
-                    f"Invalid tx hash in ungroundedAttempts.{tx_key}: '{tx_hash}'"
-                )
+    def extract_active(obj):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k in ("commitmentId", "cid") and isinstance(v, str):
+                    active_cids.add(v.lower())
+                elif isinstance(v, str) and v.startswith("0x") and len(v) == 66:
+                    active_hashes.add(v.lower())
+                extract_active(v)
+        elif isinstance(obj, list):
+            for item in obj:
+                extract_active(item)
 
-    # Check superseded addresses: they must only appear in README.md under Superseded Deployments
-    # and in scripts/deploy/deployments.json supersededDeployments
+    extract_active(live_evidence)
+    extract_active(gap_attempts)
+
+    # Also add deployTxHash
+    if deployments.get("deployTxHash"):
+        active_hashes.add(deployments["deployTxHash"].lower())
+
+    # Known superseded addresses and commitment IDs
     superseded_addrs = [item["address"].lower() for item in deployments.get("supersededDeployments", [])]
+    superseded_cids = {
+        "3d2cc5901dad", "d569fda4e876", "9875a6cdef6d",
+        "ec77538d32e9", "a0d3d1ba6356", "7a681e3ba0a4"
+    }
 
-    # Verify docs do NOT contain superseded addresses
+    # 1. Audit README.md
+    with open(readme_path, "r", encoding="utf-8") as f:
+        readme_content = f.read()
+
+    readme_parts = readme_content.split("## Superseded Deployments")
+    main_readme = readme_parts[0]
+
+    # Verify no superseded address appears outside the superseded deployments table
+    for s_addr in superseded_addrs:
+        assert s_addr not in main_readme.lower(), (
+            f"Superseded address {s_addr} found outside ## Superseded Deployments in README.md!"
+        )
+
+    # Verify no superseded commitment ID appears outside the superseded table
+    for s_cid in superseded_cids:
+        assert s_cid not in main_readme.lower(), (
+            f"Superseded commitment ID {s_cid} found in main README.md!"
+        )
+
+    # Verify all transaction hashes in main README are active
+    hash_pattern = re.compile(r"0x[0-9a-fA-F]{64}")
+    for h in hash_pattern.findall(main_readme):
+        assert h.lower() in active_hashes, (
+            f"Unknown transaction hash {h} found in main README.md! Must be from active live_evidence."
+        )
+
+    # Verify commitment IDs in main README tables/code are active
+    cid_pattern = re.compile(r"`([0-9a-f]{12})`")
+    for match_cid in cid_pattern.findall(main_readme.lower()):
+        assert match_cid in active_cids, (
+            f"Unknown commitment ID {match_cid} found in main README.md! Must be from active live_evidence."
+        )
+
+    # 2. Audit docs/
     for fname in os.listdir(docs_dir):
-        if fname.endswith(".md"):
-            fpath = os.path.join(docs_dir, fname)
-            with open(fpath, "r", encoding="utf-8") as f:
-                content = f.read().lower()
-                for s_addr in superseded_addrs:
-                    assert s_addr not in content, (
-                        f"Superseded address {s_addr} found in {fname}! It must only be in README.md."
-                    )
+        if not fname.endswith(".md"):
+            continue
+        fpath = os.path.join(docs_dir, fname)
+        with open(fpath, "r", encoding="utf-8") as f:
+            doc_content = f.read()
 
-    # Verify no truncated hashes like '0x1234...5678' in README.md or docs
+        # No superseded addresses in any doc
+        for s_addr in superseded_addrs:
+            assert s_addr not in doc_content.lower(), (
+                f"Superseded address {s_addr} found in {fname}! It must only be in README.md."
+            )
+
+        # No superseded commitment IDs in any doc
+        for s_cid in superseded_cids:
+            assert s_cid not in doc_content.lower(), (
+                f"Superseded commitment ID {s_cid} found in {fname}!"
+            )
+
+        # In EVIDENCE.md and INTEGRATION.md, verify all hashes and commitment IDs are active
+        if fname in ("EVIDENCE.md", "INTEGRATION.md"):
+            for h in hash_pattern.findall(doc_content):
+                assert h.lower() in active_hashes, (
+                    f"Unknown transaction hash {h} found in docs/{fname}! Must be from active live_evidence."
+                )
+            for match_cid in cid_pattern.findall(doc_content.lower()):
+                assert match_cid in active_cids, (
+                    f"Unknown commitment ID {match_cid} found in docs/{fname}! Must be from active live_evidence."
+                )
+
+    # 3. Verify no truncated hashes like '0x1234...5678' in README.md or docs
     files_to_check = [readme_path] + [os.path.join(docs_dir, f) for f in os.listdir(docs_dir) if f.endswith(".md")]
     truncated_pattern = re.compile(r"0x[a-fA-F0-9]{4,16}\.\.\.[a-fA-F0-9]{4,16}")
     for fpath in files_to_check:
@@ -109,11 +177,11 @@ def check_consistency():
             assert not matches, f"Truncated tx/address hash found in {os.path.basename(fpath)}: {matches}"
 
     print("PASSED: All evidence consistency assertions satisfied.")
-    print(f"  Verified contract address: {actual_contract}")
-    print(f"  Verified {len(cases)} primary test cases without title-outcome contradiction.")
-    print(f"  Verified {len(neg_tests)} negative tests with valid 66-char tx hashes and revert payloads.")
-    print(f"  Verified no truncated hashes ('...') across markdown documentation.")
-    print(f"  Verified superseded addresses do not leak into docs/ (only present in README & deployments.json).")
+    print(f"  Verified active contract address: {actual_contract}")
+    print(f"  Verified {len(active_cids)} active commitment IDs and {len(active_hashes)} active hashes.")
+    print(f"  Verified 0 superseded addresses outside README.md ## Superseded Deployments.")
+    print(f"  Verified 0 superseded commitment IDs across README.md and docs/.")
+    print(f"  Verified all transaction hashes and commitment IDs match active live_evidence.json.")
 
 if __name__ == "__main__":
     check_consistency()

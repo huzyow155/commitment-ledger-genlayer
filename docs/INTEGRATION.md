@@ -65,7 +65,7 @@ Submits an allowlisted public source URL. The contract selects highest-density w
     address: '0xBaC90bbD20C3F9Ad873B602eC3684EF3145597DB',
     functionName: 'submit_resolution',
     args: [
-      "80e4e5b412bf",
+      "98e5aceacf75",
       "https://en.wikipedia.org/wiki/Apollo_11"
     ],
   });
@@ -103,7 +103,7 @@ Retrieves a serialized JSON representation of a commitment record.
   ```json
   {
     "schema_version": "3.1.0",
-    "commitment_id": "80e4e5b412bf",
+    "commitment_id": "98e5aceacf75",
     "registrant": "0x...",
     "raw_text": "The United States Apollo 11 mission will land human astronauts on the lunar surface before 1970.",
     "subject": "us apollo 11 mission",
